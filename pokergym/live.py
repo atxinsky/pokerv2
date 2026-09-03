@@ -21,7 +21,14 @@ from pokergym.view import build_bot_view
 
 
 class LiveSession:
-    def __init__(self, seed: int = 1, mode: str = MODE_TRAIN, n: int = N_SEATS, hero_seat: int = 0):
+    def __init__(
+        self,
+        seed: int = 1,
+        mode: str = MODE_TRAIN,
+        n: int = N_SEATS,
+        hero_seat: int = 0,
+        wait_llm: bool = False,
+    ):
         self.seed = seed
         self.mode = mode
         self.n = n
@@ -29,7 +36,10 @@ class LiveSession:
         self.rng = random.Random(seed)
         self.st = new_table(n, self.rng, button=0)
         self.bots = spawn_table_bots(self.rng, n, hero_seat)
-        enrich_bots_async(self.bots)
+        enrich_bots_async(self.bots, blocking=wait_llm)
+        self.llm_comment: str | None = None
+        self._llm_comment_key = None
+        self._llm_comment_busy = False
         self.hist = []
         self.llm = llm_status()
         self._advice_cache = {}
@@ -204,4 +214,33 @@ class LiveSession:
         out = {**math, **adv}
         if adv.get("equity") is not None:
             out["equity_est"] = adv["equity"]
+        out["llm_comment"] = self.llm_comment if self._llm_comment_key == key else None
+        if (
+            self.waiting() == "hero"
+            and not self._llm_comment_busy
+            and self._llm_comment_key != key
+        ):
+            self._kick_llm_comment(key, view, adv)
         return out
+
+    def _kick_llm_comment(self, key, view, adv: dict) -> None:
+        import threading
+
+        from pokergym.deepseek import available
+
+        if not available():
+            return
+        self._llm_comment_busy = True
+
+        def work():
+            try:
+                from pokergym.llm_coach import comment_spot
+
+                text = comment_spot(view, adv)
+                if text:
+                    self.llm_comment = text
+                    self._llm_comment_key = key
+            finally:
+                self._llm_comment_busy = False
+
+        threading.Thread(target=work, daemon=True).start()

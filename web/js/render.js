@@ -202,6 +202,21 @@ function renderCoach(state) {
     const size = c.size_hint ? ` ${c.size_hint}。` : "";
     adv.textContent = [act, c.why, size].filter(Boolean).join(" ");
   }
+  const say = document.getElementById("llm-say");
+  if (say) {
+    if (c && c.llm_comment) {
+      say.textContent = "DeepSeek：" + c.llm_comment;
+    } else if (state.llm && state.llm.enabled && state.waiting === "hero") {
+      say.textContent = "DeepSeek 正在看这手…";
+    } else {
+      say.textContent = "";
+    }
+  }
+  const feed = document.getElementById("llm-feed");
+  if (feed) {
+    const rows = (state.llm && state.llm.log) || [];
+    feed.textContent = rows.slice(0, 2).map((r) => r.msg).join("  ·  ");
+  }
   const dl = document.getElementById("coach-dl");
   dl.replaceChildren();
   const rows = c

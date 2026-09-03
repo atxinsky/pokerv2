@@ -30,7 +30,7 @@ def format_digest(d: dict) -> str:
     return "\n".join(lines)
 
 
-def enrich_bots_async(bots: dict, rng_seed: int = 1) -> None:
+def enrich_bots_async(bots: dict, rng_seed: int = 1, blocking: bool = False) -> None:
     from pokergym.store import log_llm
 
     if not bots:
@@ -113,7 +113,10 @@ def enrich_bots_async(bots: dict, rng_seed: int = 1) -> None:
 
         _log("人格已写入：" + "、".join(n.rstrip("0123456789") for n in names[:7]))
 
-    threading.Thread(target=work, daemon=True).start()
+    if blocking:
+        work()
+    else:
+        threading.Thread(target=work, daemon=True).start()
 
 
 def json_dumps(obj) -> str:

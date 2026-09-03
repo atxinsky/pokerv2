@@ -28,9 +28,9 @@ def get_session() -> LiveSession:
     return _session
 
 
-def reset_session(seed: int = 1, mode: str = "train") -> LiveSession:
+def reset_session(seed: int = 1, mode: str = "train", wait_llm: bool = False) -> LiveSession:
     global _session
-    _session = LiveSession(seed=seed, mode=mode)
+    _session = LiveSession(seed=seed, mode=mode, wait_llm=wait_llm)
     _session.new_hand()
     return _session
 
@@ -96,6 +96,15 @@ class Handler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             self._json({"error": "JSON 无效"}, 400)
             return
+        if path == "/api/llm-ping":
+            from pokergym.deepseek import ping
+            from pokergym.store import log_llm
+
+            apply_env()
+            info = ping()
+            log_llm(info["msg"])
+            self._json(info)
+            return
         with _lock:
             if path == "/api/settings":
                 info = save_settings(payload)
@@ -107,7 +116,8 @@ class Handler(SimpleHTTPRequestHandler):
                 mode = payload.get("mode", "train")
                 if mode not in ("train", "realism"):
                     mode = "train"
-                sess = reset_session(seed, mode)
+                wait = bool(payload.get("wait_llm"))
+                sess = reset_session(seed, mode, wait_llm=wait)
                 self._json(dump_state(sess))
                 return
             if path == "/api/hand":

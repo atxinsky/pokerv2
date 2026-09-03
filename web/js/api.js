@@ -15,7 +15,8 @@ const api = {
     return data;
   },
   state: () => api.get("/api/state"),
-  neu: (seed, mode) => api.post("/api/new", { seed, mode }),
+  neu: (seed, mode, wait_llm) => api.post("/api/new", { seed, mode, wait_llm: !!wait_llm }),
+  pingLlm: () => api.post("/api/llm-ping", {}),
   hand: () => api.post("/api/hand", {}),
   step: () => api.post("/api/step", {}),
   act: (kind, to_bb) => api.post("/api/action", { kind, to_bb }),

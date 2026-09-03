@@ -89,9 +89,23 @@ def chat_json(system: str, user: str, timeout: float = 12.0) -> dict | None:
                 text = text[4:]
         LAST_ERROR = ""
         return json.loads(text)
+    except urllib.error.HTTPError as e:
+        LAST_ERROR = f"HTTP {e.code}"
+        return None
     except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError, IndexError, OSError) as e:
         LAST_ERROR = type(e).__name__
         return None
+
+
+def ping() -> dict:
+    data = chat_json(
+        '只输出 JSON：{"ok":true,"msg":"pong"}',
+        "连通测试",
+        timeout=10,
+    )
+    if data and (data.get("ok") or data.get("msg")):
+        return {"ok": True, "msg": "DeepSeek 连通正常"}
+    return {"ok": False, "msg": f"连通失败 {LAST_ERROR or '无返回'}"}
 
 
 def clamp_delta(delta: dict | None) -> dict:

@@ -128,6 +128,29 @@ async function apply(next) {
   renderAll(state);
   syncTray();
   scheduleBot();
+  scheduleLlmPoll();
+}
+
+let llmPoll = 0;
+function scheduleLlmPoll() {
+  if (llmPoll) clearTimeout(llmPoll);
+  const want =
+    state &&
+    state.waiting === "hero" &&
+    state.llm &&
+    state.llm.enabled &&
+    !(state.coach && state.coach.llm_comment);
+  if (!want) return;
+  llmPoll = setTimeout(async () => {
+    if (busy) return;
+    try {
+      const s = await api.state();
+      state = s;
+      renderAll(state);
+      syncTray();
+      scheduleLlmPoll();
+    } catch (e) {}
+  }, 1100);
 }
 
 function scheduleBot() {
@@ -195,7 +218,8 @@ async function newTable() {
   const seed = Math.floor(Math.random() * 1e9);
   busy = true;
   try {
-    await apply(await api.neu(seed, mode));
+    setHint("DeepSeek 正在给这桌写人格，请稍等…");
+    await apply(await api.neu(seed, mode, true));
   } catch (e) {
     setHint(String(e.message || e));
   } finally {
@@ -302,12 +326,21 @@ $("btn-save-set").addEventListener("click", async () => {
     const save = api.saveSettings
       ? (body) => api.saveSettings(body)
       : (body) => api.post("/api/settings", body);
+    $("set-hint").textContent = "正在保存并测试 DeepSeek…";
     await save({
       llm_enabled: $("set-llm").checked,
       deepseek_key: $("set-key").value,
       deepseek_base: $("set-base").value,
       deepseek_model: $("set-model").value,
     });
+    try {
+      const ping = await api.pingLlm();
+      $("set-hint").textContent = ping.msg || (ping.ok ? "连通正常" : "连通失败");
+      if (!ping.ok) return;
+    } catch (e) {
+      $("set-hint").textContent = "连通测试失败：" + (e.message || e);
+      return;
+    }
     $("settings").hidden = true;
     await newTable();
   } catch (e) {

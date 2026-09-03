@@ -37,6 +37,7 @@ body {
   grid-template-rows: auto 1fr auto;
   grid-template-areas:
     "mast mast mast"
+    "feed feed feed"
     "tape stage coach"
     "tray tray tray";
 }
@@ -256,6 +257,22 @@ body {
   color: var(--cream-dim);
 }
 .llm-pill.on { color: var(--lamp); border-color: var(--brass); }
+.llm-feed {
+  grid-area: feed;
+  margin: 0;
+  padding: 4px 22px 8px;
+  font-size: 0.78rem;
+  color: var(--lamp);
+  min-height: 1.4em;
+}
+.llm-say {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--brass);
+  color: var(--lamp);
+  font-size: 0.9rem;
+  min-height: 1.4em;
+}
 
 .stage {
   grid-area: stage;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PokerGym · 夜场</title>
-  <link rel="stylesheet" href="/css/app.css?v=5" />
+  <link rel="stylesheet" href="/css/app.css?v=6" />
 </head>
 <body>
   <div class="room">
@@ -25,6 +25,7 @@
       <button type="button" class="ghost" id="btn-new">换一桌</button>
       <button type="button" class="ghost" id="btn-settings">设置</button>
     </header>
+    <p class="llm-feed" id="llm-feed"></p>
 
     <aside class="tape" aria-label="记录">
       <div class="hero-hud" id="hero-hud"></div>
@@ -59,6 +60,7 @@
       <h2>这口该怎么打</h2>
       <p class="eq-big" id="eq-big">—</p>
       <p class="advice" id="advice">发牌后给出位置建议</p>
+      <p class="llm-say" id="llm-say"></p>
       <dl id="coach-dl"></dl>
       <p class="tags" id="tags"></p>
       <h2 id="chart-title">范围图</h2>
@@ -113,8 +115,8 @@
     <button type="button" class="primary" id="btn-next">下一手</button>
   </section>
 
-  <script src="/js/api.js?v=5"></script>
-  <script src="/js/render.js?v=5"></script>
-  <script src="/js/app.js?v=5"></script>
+  <script src="/js/api.js?v=6"></script>
+  <script src="/js/render.js?v=6"></script>
+  <script src="/js/app.js?v=6"></script>
 </body>
 </html>
