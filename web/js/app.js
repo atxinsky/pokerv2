@@ -1,7 +1,9 @@
 let state = null;
 let busy = false;
 let botTimer = 0;
-let pendingKind = null;
+let lastWaiting = null;
+let betTo = null;
+let tapeTab = "live";
 
 function $(id) {
   return document.getElementById(id);
@@ -18,59 +20,83 @@ function clearBotTimer() {
   }
 }
 
-function betKind() {
-  const kinds = new Set((state.legal || []).map((x) => x.kind));
-  if (kinds.has("raise")) return "raise";
-  if (kinds.has("bet")) return "bet";
-  return null;
+function clampBet(v) {
+  const b = state && state.bet;
+  if (!b) return v;
+  const x = Math.round(Number(v) * 2) / 2;
+  return Math.min(b.max_to_bb, Math.max(b.min_to_bb, x));
 }
 
-function minMaxTo() {
-  const kind = betKind();
-  const sizes = (state.sizings || []).filter((s) => s.kind === kind);
-  if (!sizes.length) return [0, 0];
-  const vals = sizes.map((s) => s.to_bb);
-  return [Math.min(...vals), Math.max(...vals)];
+function putAmount() {
+  const b = state && state.bet;
+  if (!b || betTo == null) return 0;
+  return Math.max(0, Math.round((betTo - b.already_bb) * 100) / 100);
 }
 
-function paintBetbox() {
+function refreshBetRead() {
+  const b = state && state.bet;
+  const input = $("bet-amount");
+  const btn = $("bet-confirm");
+  if (!b || betTo == null) {
+    $("bet-read").textContent = "";
+    return;
+  }
+  input.value = String(betTo);
+  const add = putAmount();
+  const potAfter = Math.round((b.pot_bb + add) * 10) / 10;
+  const frac = b.pot_bb > 0 ? Math.round((add / b.pot_bb) * 100) : 0;
+  const verb = b.kind === "raise" ? "加到" : "下注到";
+  $("bet-read").textContent = `${verb} ${betTo}bb · 投入 ${add}bb · 底池→${potAfter}bb（${frac}%）`;
+  btn.textContent = b.kind === "raise" ? `加到 ${betTo}bb` : `下注 ${add}bb`;
+  btn.disabled = add <= 0;
+  for (const t of $("ticks").querySelectorAll("button")) {
+    t.classList.toggle("on", Number(t.dataset.to) === betTo);
+  }
+}
+
+function setBetTo(v, fromUser) {
+  betTo = clampBet(v);
+  refreshBetRead();
+  if (fromUser) $("bet-amount").focus();
+}
+
+function paintBetbox(reset) {
   const box = $("betbox");
-  const kind = betKind();
-  if (!kind || state.waiting !== "hero") {
+  const b = state && state.bet;
+  if (!b || state.waiting !== "hero") {
     box.hidden = true;
-    pendingKind = null;
     return;
   }
   box.hidden = false;
-  pendingKind = kind;
-  const [lo, hi] = minMaxTo();
-  const range = $("bet-range");
-  range.min = String(lo);
-  range.max = String(hi);
-  range.step = "0.5";
-  if (Number(range.value) < lo || Number(range.value) > hi) range.value = String(lo);
-  $("bet-read").textContent = Number(range.value).toFixed(1) + "bb";
+  const input = $("bet-amount");
+  input.min = b.min_to_bb;
+  input.max = b.max_to_bb;
+  input.step = b.step_bb;
+  if (reset || betTo == null) betTo = b.default_to_bb;
+  betTo = clampBet(betTo);
   const ticks = $("ticks");
   ticks.replaceChildren();
-  for (const s of state.sizings.filter((x) => x.kind === kind)) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = s.label;
-    b.addEventListener("click", () => {
-      range.value = String(s.to_bb);
-      $("bet-read").textContent = s.to_bb.toFixed(1) + "bb";
+  for (const s of b.presets) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.to = String(s.to_bb);
+    btn.innerHTML = `${s.label}<small>${s.add_bb}bb</small>`;
+    btn.addEventListener("click", () => setBetTo(s.to_bb));
+    btn.addEventListener("dblclick", () => {
+      setBetTo(s.to_bb);
+      confirmBet();
     });
-    ticks.append(b);
+    ticks.append(btn);
   }
+  refreshBetRead();
 }
 
 function paintLegal() {
   const root = $("legal");
   root.replaceChildren();
-  if (state.waiting !== "hero") return;
-  const order = ["fold", "check", "call", "bet", "raise"];
+  if (!state || state.waiting !== "hero") return;
   const by = Object.fromEntries((state.legal || []).map((x) => [x.kind, x]));
-  for (const k of order) {
+  for (const k of ["fold", "check", "call"]) {
     if (!by[k]) continue;
     const b = document.createElement("button");
     b.type = "button";
@@ -82,8 +108,15 @@ function paintLegal() {
 }
 
 function syncTray() {
+  const justHero = state && state.waiting === "hero" && lastWaiting !== "hero";
+  lastWaiting = state ? state.waiting : null;
   if (state.waiting === "hero") {
-    setHint("轮到你。F 弃 · X 过 · C 跟 · 空格 过/跟 · A 全下 · 回车 确认尺度");
+    const b = state.bet;
+    setHint(
+      b
+        ? "弃/跟立刻生效。预设只填数字，点右侧确认才下注。双击预设直接打出。1–4 选预设，+/- 调尺度。"
+        : "轮到你。F 弃 · X 过 · C 跟 · 空格 过/跟"
+    );
   } else if (state.waiting === "bot") {
     setHint("对面在想。");
   } else if (state.waiting === "over") {
@@ -92,7 +125,7 @@ function syncTray() {
     setHint("还没开局。");
   }
   paintLegal();
-  paintBetbox();
+  paintBetbox(justHero);
 }
 
 async function apply(next) {
@@ -121,23 +154,32 @@ function scheduleBot() {
   }, 420);
 }
 
-async function onAction(kind) {
+async function onAction(kind, to) {
   if (busy || !state || state.waiting !== "hero") return;
-  let to = null;
-  if (kind === "bet" || kind === "raise") {
-    to = Number($("bet-range").value);
-  } else if (kind === "call") {
+  let to_bb = to;
+  if (to_bb == null && kind === "call") {
     const c = state.legal.find((x) => x.kind === "call");
-    to = c ? c.to_bb : null;
+    to_bb = c ? c.to_bb : null;
   }
   busy = true;
   try {
-    await apply(await api.act(kind, to));
+    await apply(await api.act(kind, to_bb));
   } catch (e) {
     setHint(String(e.message || e));
   } finally {
     busy = false;
   }
+}
+
+function confirmBet() {
+  if (!state || !state.bet || state.waiting !== "hero") return;
+  onAction(state.bet.kind, clampBet(betTo));
+}
+
+function nudge(dir) {
+  if (!state || !state.bet) return;
+  const step = betTo >= 20 ? 1 : 0.5;
+  setBetTo((betTo || state.bet.default_to_bb) + dir * step, true);
 }
 
 async function nextHand() {
@@ -166,7 +208,22 @@ async function newTable() {
   }
 }
 
+function setTape(tab) {
+  tapeTab = tab;
+  $("tab-live").classList.toggle("on", tab === "live");
+  $("tab-hist").classList.toggle("on", tab === "hist");
+  $("log").hidden = tab !== "live";
+  $("hist").hidden = tab !== "hist";
+}
+
 function onKey(ev) {
+  if (ev.target && ev.target.id === "bet-amount") {
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      confirmBet();
+    }
+    return;
+  }
   if (ev.target && ["INPUT", "SELECT", "TEXTAREA"].includes(ev.target.tagName)) return;
   const k = ev.key.toLowerCase();
   if (state && state.waiting === "over" && (k === "enter" || k === "n")) {
@@ -179,28 +236,45 @@ function onKey(ev) {
   if (k === "f" && kinds.has("fold")) onAction("fold");
   else if (k === "x" && kinds.has("check")) onAction("check");
   else if (k === "c" && kinds.has("call")) onAction("call");
-  else if (k === " " ) {
+  else if (k === " ") {
     ev.preventDefault();
     if (kinds.has("check")) onAction("check");
     else if (kinds.has("call")) onAction("call");
-  } else if (k === "a") {
-    const sizes = state.sizings || [];
-    const allin = sizes.find((s) => s.label === "全下");
+  } else if (k === "a" && state.bet) {
+    const allin = state.bet.presets.find((s) => s.label === "全下");
     if (allin) {
-      $("bet-range").value = String(allin.to_bb);
-      onAction(allin.kind);
+      setBetTo(allin.to_bb);
+      confirmBet();
     }
-  } else if (k === "enter" && (kinds.has("bet") || kinds.has("raise"))) {
-    onAction(betKind());
+  } else if (k === "enter" && state.bet) {
+    ev.preventDefault();
+    confirmBet();
+  } else if ((k === "+" || k === "=") && state.bet) {
+    ev.preventDefault();
+    nudge(1);
+  } else if (k === "-" && state.bet) {
+    ev.preventDefault();
+    nudge(-1);
+  } else if (state.bet && k >= "1" && k <= "4") {
+    const p = state.bet.presets[Number(k) - 1];
+    if (p) setBetTo(p.to_bb);
   }
 }
 
-$("bet-range").addEventListener("input", () => {
-  $("bet-read").textContent = Number($("bet-range").value).toFixed(1) + "bb";
+$("bet-minus").addEventListener("click", () => nudge(-1));
+$("bet-plus").addEventListener("click", () => nudge(1));
+$("bet-confirm").addEventListener("click", confirmBet);
+$("bet-amount").addEventListener("change", () => setBetTo($("bet-amount").value));
+$("bet-amount").addEventListener("input", () => {
+  const v = Number($("bet-amount").value);
+  if (!Number.isNaN(v)) betTo = v;
+  refreshBetRead();
 });
 $("btn-next").addEventListener("click", nextHand);
 $("btn-new").addEventListener("click", newTable);
 $("mode").addEventListener("change", newTable);
+$("tab-live").addEventListener("click", () => setTape("live"));
+$("tab-hist").addEventListener("click", () => setTape("hist"));
 document.addEventListener("keydown", onKey);
 
 (async function boot() {

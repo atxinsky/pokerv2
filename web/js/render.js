@@ -73,16 +73,80 @@ function renderSeats(state) {
   }
 }
 
+function logText(a) {
+  if (a.kind === "fold" || a.kind === "check") return a.kind_zh;
+  if (a.kind === "call") return `跟注 ${a.put_bb}bb`;
+  if (a.kind === "bet") return `下注 ${a.put_bb}bb`;
+  if (a.kind === "raise") return `加到 ${a.to_bb}bb`;
+  return a.kind_zh;
+}
+
 function renderLog(state) {
   const ol = document.getElementById("log");
   ol.replaceChildren();
+  let street = null;
   for (const a of state.log) {
+    if (a.street_zh !== street) {
+      street = a.street_zh;
+      const h = document.createElement("li");
+      h.className = "street-mark";
+      h.textContent = street;
+      ol.append(h);
+    }
     const li = document.createElement("li");
-    const extra = ["bet", "raise", "call"].includes(a.kind) ? ` ${a.to_bb}bb` : "";
-    li.innerHTML = `<b>${a.name}</b> ${a.street_zh} ${a.kind_zh}${extra}`;
+    li.innerHTML = `<b>${a.name}</b> ${logText(a)}`;
     ol.append(li);
   }
   ol.scrollTop = ol.scrollHeight;
+}
+
+function renderHud(state) {
+  const el = document.getElementById("hero-hud");
+  const s = state.hero_stats || {};
+  const bb = s.bb || 0;
+  const cls = bb > 0 ? "up" : bb < 0 ? "down" : "";
+  el.innerHTML = `
+    <div><span>手数</span><b>${s.hands || 0}</b></div>
+    <div><span>bb/100</span><b class="${cls}">${s.hands >= 8 ? s.bb100 : "—"}</b></div>
+    <div><span>VPIP / PFR</span><b>${s.vpip || 0} / ${s.pfr || 0}</b></div>
+    <div><span>本场</span><b class="${cls}">${bb > 0 ? "+" : ""}${bb}bb</b></div>
+  `;
+}
+
+function renderHistory(state) {
+  const ol = document.getElementById("hist");
+  const tab = document.getElementById("tab-hist");
+  const n = (state.history || []).length;
+  tab.textContent = n ? `历史 ${n}` : "历史";
+  ol.replaceChildren();
+  const rows = [...(state.history || [])].reverse();
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.textContent = "打完的手会出现在这里";
+    ol.append(li);
+    return;
+  }
+  for (const h of rows) {
+    const li = document.createElement("li");
+    li.className = "hist-item";
+    const dlt = h.delta_bb > 0 ? `+${h.delta_bb}` : String(h.delta_bb);
+    const cls = h.delta_bb > 0 ? "up" : h.delta_bb < 0 ? "down" : "";
+    const hole = document.createElement("div");
+    hole.className = "mini";
+    for (const c of h.hole || []) hole.append(cardEl(c));
+    const board = document.createElement("div");
+    board.className = "mini";
+    for (const c of h.board || []) board.append(cardEl(c));
+    const detail = (h.log || []).map((a) => `${a.name} ${logText(a)}`).join(" · ");
+    li.innerHTML = `<div class="row"><b>#${h.hand_idx + 1}</b><span class="delta ${cls}">${dlt}bb</span></div>`;
+    li.append(hole, board);
+    const d = document.createElement("div");
+    d.className = "hist-detail";
+    d.textContent = detail || "无行动";
+    li.append(d);
+    li.addEventListener("click", () => li.classList.toggle("open"));
+    ol.append(li);
+  }
 }
 
 function renderCoach(state) {
@@ -142,6 +206,8 @@ function renderAll(state) {
   renderBoard(state);
   renderSeats(state);
   renderLog(state);
+  renderHud(state);
+  renderHistory(state);
   renderCoach(state);
   renderSlip(state);
 }

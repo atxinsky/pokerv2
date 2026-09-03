@@ -39,12 +39,14 @@ def test_pages_and_api():
         assert "PokerGym" in text
         assert "/js/app.js" in text
         assert "id=\"legal\"" in text
+        assert "id=\"bet-amount\"" in text
+        assert "id=\"hist\"" in text
         st, css = _get(port, "/css/app.css")
         assert st == 200
         assert b"--felt" in css
         st, js = _get(port, "/js/app.js")
         assert st == 200
-        assert b"onAction" in js
+        assert b"confirmBet" in js
         st, body = _get(port, "/api/state")
         data = json.loads(body.decode())
         assert data["waiting"] in ("hero", "bot", "over")

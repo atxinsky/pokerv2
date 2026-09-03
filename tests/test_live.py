@@ -65,3 +65,36 @@ def test_json_roundtrip():
     raw = json.dumps(dump_state(s), ensure_ascii=False)
     assert "翻前" in raw or "翻牌" in raw
     assert "seats" in raw
+
+
+def test_history_after_hand():
+    s = LiveSession(seed=11)
+    s.new_hand()
+    _drive(s)
+    data = dump_state(s)
+    assert data["waiting"] == "over"
+    assert len(data["history"]) == 1
+    rec = data["history"][0]
+    assert rec["hole"]
+    assert "delta_bb" in rec
+    assert data["hero_stats"]["hands"] == 1
+
+
+def test_bet_ui_when_can_raise():
+    s = LiveSession(seed=1)
+    s.new_hand()
+    for _ in range(30):
+        if s.waiting() != "bot":
+            break
+        s.step_bot()
+    data = dump_state(s)
+    if data["waiting"] != "hero":
+        return
+    kinds = {x["kind"] for x in data["legal"]}
+    if "bet" not in kinds and "raise" not in kinds:
+        return
+    b = data["bet"]
+    assert b is not None
+    assert b["min_to_bb"] <= b["default_to_bb"] <= b["max_to_bb"]
+    assert b["presets"]
+    assert "add_bb" in b["presets"][0]

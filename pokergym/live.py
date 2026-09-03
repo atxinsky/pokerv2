@@ -32,6 +32,7 @@ class LiveSession:
         self.last_event: dict | None = None
         self.hand_open = False
         self.finished_recorded = False
+        self.archive: list[dict] = []
 
     def waiting(self) -> str:
         if not self.hand_open:
@@ -71,6 +72,24 @@ class LiveSession:
         h = snapshot_hand(self.st)
         self.hist.append(h)
         self.finished_recorded = True
+        hero = self.st.players[self.hero_seat]
+        self.archive.append(
+            {
+                "hand_idx": self.st.hand_idx,
+                "delta_bb": round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
+                "hole": self.st.holes.get(self.hero_seat),
+                "board": tuple(self.st.board),
+                "log": list(self.st.action_log),
+                "winners": list(self.st.winners),
+                "revealed": dict(self.st.revealed),
+                "tags": list(self.last_tags),
+                "folded": hero.folded,
+                "vpip": bool(h.vpip.get(self.hero_seat)),
+                "pfr": bool(h.pfr.get(self.hero_seat)),
+            }
+        )
+        if len(self.archive) > 80:
+            self.archive = self.archive[-80:]
         for s in range(self.n):
             won = h.won_chips.get(s, 0)
             self.lost_big[s] = won == 0 and any(v >= 2000 for v in h.won_chips.values())

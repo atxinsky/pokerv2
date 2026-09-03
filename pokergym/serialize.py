@@ -65,42 +65,131 @@ def _bb(chips: int) -> float:
     return round(chips / CHIP_PER_BB, 2)
 
 
-def _sizings(sess: LiveSession) -> list[dict]:
+def _bet_ui(sess: LiveSession) -> dict | None:
+    """下注/加注用「加到 to_bb」（本街累计），并给出投入 add_bb。"""
     if sess.waiting() != "hero":
-        return []
+        return None
     st = sess.st
-    seat = sess.hero_seat
-    p = st.players[seat]
+    p = st.players[sess.hero_seat]
+    kinds = {a.kind for a in legal_actions(st, sess.hero_seat)}
+    if "bet" not in kinds and "raise" not in kinds:
+        return None
     pot = st.pot_chips
-    max_to = p.bet_street + p.stack
-    tc = st.current_bet - p.bet_street
-    out = []
+    already = p.bet_street
+    max_to = already + p.stack
+    tc = st.current_bet - already
     if tc > 0:
         kind = "raise"
         min_to = min(max_to, st.current_bet + st.min_raise_by)
-        labels = [("最小", min_to), ("2.5x", int(st.current_bet * 2.5)), ("底池", st.current_bet + pot), ("全下", max_to)]
-    else:
-        kind = "bet"
-        labels = [
-            ("1/3", p.bet_street + max(st.bb_chips, int(pot * 0.33))),
-            ("1/2", p.bet_street + max(st.bb_chips, int(pot * 0.50))),
-            ("2/3", p.bet_street + max(st.bb_chips, int(pot * 0.66))),
-            ("底池", p.bet_street + max(st.bb_chips, pot)),
+        raw = [
+            ("最小", min_to),
+            ("2.5x", int(st.current_bet * 2.5)),
+            ("3x", int(st.current_bet * 3)),
+            ("底池", st.current_bet + pot),
             ("全下", max_to),
         ]
-    seen = set()
-    for label, to in labels:
-        to = max(0, min(to, max_to))
-        if to <= p.bet_street:
+    else:
+        kind = "bet"
+        min_to = min(max_to, already + st.bb_chips)
+        raw = [
+            ("1/3", already + max(st.bb_chips, int(pot * 0.33))),
+            ("1/2", already + max(st.bb_chips, int(pot * 0.50))),
+            ("2/3", already + max(st.bb_chips, int(pot * 0.66))),
+            ("底池", already + max(st.bb_chips, pot)),
+            ("1.5x", already + max(st.bb_chips, int(pot * 1.5))),
+            ("全下", max_to),
+        ]
+    presets = []
+    seen: set[float] = set()
+    for label, to in raw:
+        to = max(min_to, min(to, max_to))
+        if to <= already:
             continue
-        if tc > 0 and to < st.current_bet + st.min_raise_by and to < max_to:
+        if tc > 0 and to < min_to and to < max_to:
             continue
-        key = (kind, to)
+        key = round(to / CHIP_PER_BB, 2)
         if key in seen:
             continue
         seen.add(key)
-        out.append({"label": label, "kind": kind, "to_bb": _bb(to)})
+        add = to - already
+        presets.append(
+            {
+                "label": label,
+                "to_bb": _bb(to),
+                "add_bb": _bb(add),
+                "hint": f"投入 {_bb(add)}bb",
+            }
+        )
+    half = already + max(st.bb_chips, int(pot * 0.5))
+    default = min(max_to, max(min_to, half if kind == "bet" else min_to))
+    return {
+        "kind": kind,
+        "min_to_bb": _bb(min_to),
+        "max_to_bb": _bb(max_to),
+        "default_to_bb": _bb(default),
+        "already_bb": _bb(already),
+        "to_call_bb": _bb(max(0, tc)),
+        "pot_bb": _bb(pot),
+        "step_bb": 0.5,
+        "presets": presets,
+    }
+
+
+def _history(sess: LiveSession) -> list[dict]:
+    out = []
+    for rec in sess.archive[-40:]:
+        hole = rec.get("hole") or ()
+        board = rec.get("board") or ()
+        log = []
+        for a in rec.get("log") or []:
+            log.append(
+                {
+                    "name": sess._name(a.seat),
+                    "street_zh": STREET_ZH.get(a.street, a.street),
+                    "kind_zh": KIND_ZH.get(a.kind, a.kind),
+                    "put_bb": _bb(a.put_chips),
+                    "to_bb": _bb(a.to_chips),
+                    "kind": a.kind,
+                }
+            )
+        out.append(
+            {
+                "hand_idx": rec["hand_idx"],
+                "delta_bb": rec["delta_bb"],
+                "folded": rec["folded"],
+                "vpip": rec["vpip"],
+                "pfr": rec["pfr"],
+                "tags": [TAG_ZH.get(t, t) for t in rec.get("tags") or []],
+                "hole": [card_dto(c) for c in hole],
+                "board": [card_dto(c) for c in board],
+                "log": log,
+            }
+        )
     return out
+
+
+def _hero_stats(sess: LiveSession) -> dict:
+    rows = sess.archive
+    n = len(rows)
+    bb = sum(r["delta_bb"] for r in rows)
+    vpip = sum(1 for r in rows if r["vpip"])
+    pfr = sum(1 for r in rows if r["pfr"])
+    wins = sum(1 for r in rows if r["delta_bb"] > 0)
+    stats = collect(sess.hist, sess.n) if sess.hist else None
+    hs = stats.get(sess.hero_seat) if stats else None
+    three = 0.0
+    if hs and hs.vs_open:
+        three = hs.threebet / hs.vs_open
+    return {
+        "hands": n,
+        "bb": round(bb, 1),
+        "bb100": round(bb / n * 100, 1) if n else 0.0,
+        "vpip": round(100 * vpip / n) if n else 0,
+        "pfr": round(100 * pfr / n) if n else 0,
+        "wins": wins,
+        "wtsd": round(100 * hs.wtsd) if hs else 0,
+        "threebet": round(100 * three),
+    }
 
 
 def _legal_dto(sess: LiveSession) -> list[dict]:
@@ -189,18 +278,17 @@ def dump_state(sess: LiveSession) -> dict:
         except Exception:
             coach = None
     log = []
-    for a in st.action_log[-24:]:
+    for a in st.action_log[-40:]:
         log.append(
             {
                 "seat": a.seat,
-                "name": "你" if a.seat == sess.hero_seat else (
-                    sess.bots[a.seat].name.rstrip("0123456789") if a.seat in sess.bots else f"#{a.seat}"
-                ),
+                "name": sess._name(a.seat),
                 "street": a.street,
                 "street_zh": STREET_ZH.get(a.street, a.street),
                 "kind": a.kind,
                 "kind_zh": KIND_ZH.get(a.kind, a.kind),
                 "to_bb": _bb(a.to_chips),
+                "put_bb": _bb(a.put_chips),
             }
         )
     winners = []
@@ -234,11 +322,13 @@ def dump_state(sess: LiveSession) -> dict:
         "board": [card_dto(c) for c in st.board],
         "seats": seats,
         "legal": _legal_dto(sess),
-        "sizings": _sizings(sess),
+        "bet": _bet_ui(sess),
         "to_call_bb": sess.hero_to_call_bb() if waiting == "hero" else 0,
         "stack_bb": _bb(st.players[sess.hero_seat].stack),
         "coach": coach,
         "log": log,
+        "history": _history(sess),
+        "hero_stats": _hero_stats(sess),
         "last_event": sess.last_event,
         "tags": [TAG_ZH.get(t, t) for t in sess.last_tags],
         "winners": winners,
