@@ -104,6 +104,12 @@ def cmd_sim(args):
     )
 
 
+def cmd_ui(args):
+    from pokergym.desktop import run_ui
+
+    run_ui(host=args.host, port=args.port, browser=args.browser)
+
+
 def cmd_drill(args):
     out = run_fold_to_3bet_drill(seed=args.seed, hands=args.hands)
     print(
@@ -134,6 +140,11 @@ def main(argv=None):
     sd.add_argument("--seed", type=int, default=9)
     sd.add_argument("--hands", type=int, default=200)
     sd.set_defaults(func=cmd_drill)
+    su = sub.add_parser("ui", help="桌面夜场牌桌")
+    su.add_argument("--host", default="127.0.0.1")
+    su.add_argument("--port", type=int, default=8765)
+    su.add_argument("--browser", action="store_true", help="只用系统浏览器")
+    su.set_defaults(func=cmd_ui)
     args = p.parse_args(argv)
     args.func(args)
 

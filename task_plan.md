@@ -18,4 +18,5 @@
 - 统计按原型盒子；WTSD 偏高是 8 人 limp 多人池的真实特征，不按线上 6-max 区间砍
 
 ## Status
-**Done** — `uv run pytest` 22 passed
+**Done** — 引擎 22 测 + 桌面 UI（LiveSession/HTTP/夜场牌桌）。`uv run pytest` 26 passed。
+`uv run python -m pokergym ui` 开桌。

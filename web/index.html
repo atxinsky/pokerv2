@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PokerGym · 夜场</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,720&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div class="room">
+    <header class="mast">
+      <div class="mast-brand">
+        <em>夜场</em>
+        <strong>PokerGym</strong>
+      </div>
+      <p class="mast-meta" id="mast-meta">开局中</p>
+      <label class="mode">
+        模式
+        <select id="mode">
+          <option value="train">训练 · 对手读得快</option>
+          <option value="realism">拟真 · 对手读得慢</option>
+        </select>
+      </label>
+      <button type="button" class="ghost" id="btn-new">换一桌</button>
+    </header>
+
+    <aside class="tape" aria-label="行动记录">
+      <h2>水单</h2>
+      <ol id="log"></ol>
+    </aside>
+
+    <main class="stage">
+      <div class="lamp" aria-hidden="true"></div>
+      <div class="table" id="table">
+        <div class="rail"></div>
+        <div class="felt-in">
+          <div class="pot" id="pot">
+            <span class="pot-k">底池</span>
+            <span class="pot-v" id="pot-v">—</span>
+          </div>
+          <div class="board" id="board"></div>
+          <p class="street" id="street"></p>
+        </div>
+        <div id="seats"></div>
+      </div>
+    </main>
+
+    <aside class="coach" id="coach" aria-label="数学教练">
+      <h2>桌上的数</h2>
+      <dl id="coach-dl"></dl>
+      <p class="tags" id="tags"></p>
+    </aside>
+
+    <footer class="tray" id="tray">
+      <p class="hint" id="hint">发牌后轮到你再动</p>
+      <div class="legal" id="legal"></div>
+      <div class="betbox" id="betbox" hidden>
+        <div class="ticks" id="ticks"></div>
+        <input type="range" id="bet-range" min="0" max="100" value="0" />
+        <span class="bet-read" id="bet-read"></span>
+      </div>
+    </footer>
+  </div>
+
+  <section class="slip" id="slip" hidden>
+    <h2>这手完了</h2>
+    <ul id="winners"></ul>
+    <button type="button" class="primary" id="btn-next">下一手</button>
+  </section>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/render.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -16,16 +16,22 @@
 ```bash
 cd D:\pokerv2
 uv run pytest
+uv run python -m pokergym ui
 uv run python -m pokergym sim --hands 400 --seed 3
 uv run python -m pokergym drill --hands 200
 uv run python -m pokergym play --seed 1
 ```
+
+`ui` 会起本地夜场窗口（Edge/Chrome `--app`，否则系统浏览器）。
+
+快捷键：`F` 弃 · `X` 过 · `C` 跟 · 空格 过/跟 · `A` 全下 · 回车 确认尺度 / 下一手。
 
 `play` 输入：`f` 弃 / `x` 过 / `c` 跟 / `b 12` 下注到 12bb / `r 9` 加到 9bb / `a` 全下 / `q` 退出。
 
 ## 结构
 
 ```
-pokergym/     引擎 + bot + session + CLI
-tests/        评估器 / 边池 / 泄漏 / 复现 / 适应
+pokergym/     引擎 + bot + LiveSession + HTTP
+web/          夜场牌桌（HTML/CSS/JS）
+tests/        评估器 / 边池 / 泄漏 / 复现 / 适应 / API
 ```

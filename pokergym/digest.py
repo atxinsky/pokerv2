@@ -31,6 +31,17 @@ class HandHist:
     folded_pre: dict[int, bool] = field(default_factory=dict)
 
 
+def snapshot_hand(st) -> HandHist:
+    """一手结束后从桌面状态抽出历史。"""
+    n = st.n
+    reached_flop = len(st.board) >= 3
+    folded_pre = {a.seat for a in st.action_log if a.street == "pre" and a.kind == "fold"}
+    flop_seen = {s: reached_flop and s not in folded_pre for s in range(n)}
+    return build_hand_hist(
+        st.hand_idx, n, st.action_log, st.winners, st.revealed, st.pfr_seat, flop_seen
+    )
+
+
 def build_hand_hist(hand_idx: int, n: int, log: list[PublicAction], winners, revealed, pfr_seat, flop_seen) -> HandHist:
     h = HandHist(hand_idx=hand_idx)
     for s in range(n):
