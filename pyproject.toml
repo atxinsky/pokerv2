@@ -1,0 +1,20 @@
+[project]
+name = "pokergym"
+version = "0.2.0"
+description = "8-max 100bb NLH 现金训练场：拟人 bot + 可复现引擎"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=9.1.1",
+]
+
+[project.scripts]
+pokergym = "pokergym.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q --tb=short"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pokergym"]
