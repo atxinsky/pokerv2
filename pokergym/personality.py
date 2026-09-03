@@ -64,7 +64,7 @@ def _offset_params(rng: random.Random, archetype: str) -> dict:
     return out
 
 
-def spawn_bot(rng: random.Random, seat: int, archetype: str | None = None) -> BotProfile:
+def spawn_bot(rng: random.Random, seat: int, archetype: str | None = None, name: str | None = None) -> BotProfile:
     if archetype is None:
         names = list(ARCHETYPE_MIX)
         weights = [ARCHETYPE_MIX[n] for n in names]
@@ -75,7 +75,7 @@ def spawn_bot(rng: random.Random, seat: int, archetype: str | None = None) -> Bo
         leaks.append(SignatureLeak(trigger=trig, delta=dict(delta)))
     return BotProfile(
         seat=seat,
-        name=rng.choice(NICKNAMES) + str(seat),
+        name=name or (rng.choice(NICKNAMES) + str(seat)),
         archetype=archetype,
         base_params=_offset_params(rng, archetype),
         session=SessionState(
@@ -95,9 +95,11 @@ def spawn_table_bots(rng: random.Random, n: int, hero_seat: int | None) -> dict[
     pool = list(ARCHETYPES)
     rng.shuffle(pool)
     seats = [s for s in range(n) if s != hero_seat]
+    nick = list(NICKNAMES)
+    rng.shuffle(nick)
     for i, seat in enumerate(seats):
         arch = pool[i % len(pool)]
-        bots[seat] = spawn_bot(rng, seat, arch)
+        bots[seat] = spawn_bot(rng, seat, arch, name=nick[i % len(nick)])
     return bots
 
 

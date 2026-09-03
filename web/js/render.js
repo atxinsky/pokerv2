@@ -19,6 +19,20 @@ function rankShow(r) {
   return r === "T" ? "10" : r;
 }
 
+// 花色坐标：像实体扑克，不在中间再堆一个点数
+const PIP_XY = {
+  1: [[50, 54]],
+  2: [[50, 22], [50, 80]],
+  3: [[50, 22], [50, 54], [50, 80]],
+  4: [[28, 24], [72, 24], [28, 80], [72, 80]],
+  5: [[28, 24], [72, 24], [50, 54], [28, 80], [72, 80]],
+  6: [[28, 24], [72, 24], [28, 54], [72, 54], [28, 80], [72, 80]],
+  7: [[28, 22], [72, 22], [50, 40], [28, 54], [72, 54], [28, 82], [72, 82]],
+  8: [[28, 20], [72, 20], [28, 40], [72, 40], [28, 64], [72, 64], [28, 84], [72, 84]],
+  9: [[28, 18], [72, 18], [28, 38], [72, 38], [50, 54], [28, 70], [72, 70], [28, 86], [72, 86]],
+  10: [[28, 16], [72, 16], [50, 32], [28, 42], [72, 42], [28, 62], [72, 62], [50, 72], [28, 86], [72, 86]],
+};
+
 function cardEl(c, hidden) {
   const d = document.createElement("div");
   if (hidden) {
@@ -29,17 +43,14 @@ function cardEl(c, hidden) {
   const su = SUIT[c.suit];
   const rk = c.rank;
   d.className = "pcard " + (c.red ? "red" : "black") + " rank-" + rk;
-  let face = "";
-  if (rk === "A") {
-    face = `<span class="pip ace">${su}</span>`;
-  } else if ("JQK".includes(rk)) {
-    face = `<span class="pip face">${rk}</span>`;
-  } else {
-    const n = rk === "T" ? 10 : Number(rk);
-    const pips = Array.from({ length: n }, () => `<i>${su}</i>`).join("");
-    face = `<span class="pips p${n}">${pips}</span>`;
-  }
-  d.innerHTML = `<span class="corner"><b>${rankShow(rk)}</b><i>${su}</i></span>${face}`;
+  let n = 1;
+  if (rk === "A") n = 1;
+  else if ("JQK".includes(rk)) n = 1;
+  else n = rk === "T" ? 10 : Number(rk);
+  const pips = PIP_XY[n].map(
+    ([x, y]) => `<i class="pip" style="left:${x}%;top:${y}%">${su}</i>`
+  ).join("");
+  d.innerHTML = `<span class="corner"><b>${rankShow(rk)}</b><i>${su}</i></span>${pips}`;
   d.title = rankShow(rk) + su;
   return d;
 }

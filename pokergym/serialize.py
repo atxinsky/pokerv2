@@ -294,7 +294,7 @@ def dump_state(sess: LiveSession) -> dict:
         seats.append(
             {
                 "seat": p.seat,
-                "name": "你" if is_hero else (bot.name.rstrip("0123456789") if bot else f"#{p.seat}"),
+                "name": "你" if is_hero else (bot.name if bot else f"#{p.seat}"),
                 "archetype": None if is_hero else (bot.archetype if bot else None),
                 "archetype_zh": None if is_hero else (ARCHETYPE_ZH.get(bot.archetype) if bot else None),
                 "session_zh": None if is_hero else (SESSION_ZH.get(bot.session.kind, "") if bot else None),

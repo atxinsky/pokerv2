@@ -299,7 +299,10 @@ $("btn-close-set").addEventListener("click", () => {
 });
 $("btn-save-set").addEventListener("click", async () => {
   try {
-    await api.saveSettings({
+    const save = api.saveSettings
+      ? (body) => api.saveSettings(body)
+      : (body) => api.post("/api/settings", body);
+    await save({
       llm_enabled: $("set-llm").checked,
       deepseek_key: $("set-key").value,
       deepseek_base: $("set-base").value,

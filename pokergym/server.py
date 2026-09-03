@@ -42,6 +42,13 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def end_headers(self):
+        path = urlparse(self.path).path
+        if path.endswith((".js", ".css", ".html")) or path in ("/", "/index.html"):
+            self.send_header("Cache-Control", "no-store, max-age=0")
+            self.send_header("Pragma", "no-cache")
+        super().end_headers()
+
     def _json(self, data, code=200):
         raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(code)

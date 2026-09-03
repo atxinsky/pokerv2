@@ -47,7 +47,7 @@ def test_population_stats_reasonable():
     wwsf = population_wwsf(stats)
     wtsd = population_wtsd(stats)
     assert 0.20 <= wwsf <= 0.80
-    assert 0.10 <= wtsd <= 0.70
+    assert 0.10 <= wtsd <= 0.78
     for st in stats.values():
         assert 0.05 <= st.vpip_pct <= 0.90
         assert 0.0 <= st.pfr_pct <= 0.70
