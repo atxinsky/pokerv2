@@ -5,8 +5,11 @@ from __future__ import annotations
 import random
 
 from pokergym.adapt import maybe_adapt
+from pokergym.advise import advise, review_hand
 from pokergym.bot import decide
-from pokergym.coach import snapshot, tag_action
+from pokergym.coach import snapshot as math_snapshot, tag_action
+from pokergym.deepseek import status as llm_status
+from pokergym.llm_persona import adapt_bots_async, enrich_bots_async
 from pokergym.const import CHIP_PER_BB, MODE_TRAIN, N_SEATS
 from pokergym.digest import snapshot_hand
 from pokergym.legal import legal_actions, snap_action, to_call
@@ -26,7 +29,11 @@ class LiveSession:
         self.rng = random.Random(seed)
         self.st = new_table(n, self.rng, button=0)
         self.bots = spawn_table_bots(self.rng, n, hero_seat)
+        enrich_bots_async(self.bots)
         self.hist = []
+        self.llm = llm_status()
+        self._advice_cache = {}
+        self._advice_key = None
         self.lost_big = {s: False for s in range(n)}
         self.last_tags: list[str] = []
         self.last_event: dict | None = None
@@ -86,6 +93,13 @@ class LiveSession:
                 "folded": hero.folded,
                 "vpip": bool(h.vpip.get(self.hero_seat)),
                 "pfr": bool(h.pfr.get(self.hero_seat)),
+                "review": review_hand(
+                    self.st.holes.get(self.hero_seat),
+                    self.st.pos_name(self.hero_seat),
+                    self.st.action_log,
+                    list(self.last_tags),
+                    round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
+                ),
             }
         )
         if len(self.archive) > 80:
@@ -96,6 +110,7 @@ class LiveSession:
         for b in self.bots.values():
             b.hands_since_update += 1
             maybe_adapt(b, self.hist, self.hero_seat, self.st.hand_idx, self.mode, self.rng)
+        adapt_bots_async(self.bots, self.hist, self.hero_seat, self.st.hand_idx, self.mode)
 
     def step_bot(self) -> dict | None:
         if self.waiting() != "bot":
@@ -137,4 +152,26 @@ class LiveSession:
             # 结束仍给最后一手的数学，用当前可见
             pass
         view = build_bot_view(self.hero_seat, self.st)
-        return snapshot(view)
+        math = math_snapshot(view)
+        if self.waiting() != "hero":
+            out = {**math, **(self._advice_cache or {})}
+            return out
+        key = (
+            view.street,
+            view.hole,
+            tuple(view.board),
+            round(view.to_call_bb, 2),
+            view.position,
+            len(view.action_log),
+        )
+        if key != self._advice_key:
+            try:
+                self._advice_cache = advise(view)
+            except Exception:
+                self._advice_cache = {}
+            self._advice_key = key
+        adv = self._advice_cache or {}
+        out = {**math, **adv}
+        if adv.get("equity") is not None:
+            out["equity_est"] = adv["equity"]
+        return out

@@ -37,8 +37,9 @@ function refreshBetRead() {
   const b = state && state.bet;
   const input = $("bet-amount");
   const btn = $("bet-confirm");
-  if (!b || betTo == null) {
-    $("bet-read").textContent = "";
+  if (!b || betTo == null || !input || !btn) {
+    const r = $("bet-read");
+    if (r) r.textContent = "";
     return;
   }
   input.value = String(betTo);
@@ -47,11 +48,8 @@ function refreshBetRead() {
   const frac = b.pot_bb > 0 ? Math.round((add / b.pot_bb) * 100) : 0;
   const verb = b.kind === "raise" ? "加到" : "下注到";
   $("bet-read").textContent = `${verb} ${betTo}bb · 投入 ${add}bb · 底池→${potAfter}bb（${frac}%）`;
-  btn.textContent = b.kind === "raise" ? `加到 ${betTo}bb` : `下注 ${add}bb`;
+  btn.textContent = `打出 ${betTo}bb`;
   btn.disabled = add <= 0;
-  for (const t of $("ticks").querySelectorAll("button")) {
-    t.classList.toggle("on", Number(t.dataset.to) === betTo);
-  }
 }
 
 function setBetTo(v, fromUser) {
@@ -61,33 +59,30 @@ function setBetTo(v, fromUser) {
 }
 
 function paintBetbox(reset) {
-  const box = $("betbox");
+  const sizes = $("sizes");
+  const custom = $("betbox");
   const b = state && state.bet;
   if (!b || state.waiting !== "hero") {
-    box.hidden = true;
+    sizes.hidden = true;
+    custom.hidden = true;
     return;
   }
-  box.hidden = false;
+  sizes.hidden = false;
+  custom.hidden = false;
+  sizes.replaceChildren();
+  for (const s of b.presets) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = `${s.label}<small>投入 ${s.add_bb}bb</small>`;
+    btn.addEventListener("click", () => onAction(b.kind, s.to_bb));
+    sizes.append(btn);
+  }
   const input = $("bet-amount");
   input.min = b.min_to_bb;
   input.max = b.max_to_bb;
   input.step = b.step_bb;
   if (reset || betTo == null) betTo = b.default_to_bb;
   betTo = clampBet(betTo);
-  const ticks = $("ticks");
-  ticks.replaceChildren();
-  for (const s of b.presets) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.dataset.to = String(s.to_bb);
-    btn.innerHTML = `${s.label}<small>${s.add_bb}bb</small>`;
-    btn.addEventListener("click", () => setBetTo(s.to_bb));
-    btn.addEventListener("dblclick", () => {
-      setBetTo(s.to_bb);
-      confirmBet();
-    });
-    ticks.append(btn);
-  }
   refreshBetRead();
 }
 
@@ -114,7 +109,7 @@ function syncTray() {
     const b = state.bet;
     setHint(
       b
-        ? "弃/跟立刻生效。预设只填数字，点右侧确认才下注。双击预设直接打出。1–4 选预设，+/- 调尺度。"
+        ? "弃/跟一键生效。点 1/3、1/2、底池、全下直接下注。自定义填「加到」再点打出。"
         : "轮到你。F 弃 · X 过 · C 跟 · 空格 过/跟"
     );
   } else if (state.waiting === "bot") {
@@ -242,10 +237,7 @@ function onKey(ev) {
     else if (kinds.has("call")) onAction("call");
   } else if (k === "a" && state.bet) {
     const allin = state.bet.presets.find((s) => s.label === "全下");
-    if (allin) {
-      setBetTo(allin.to_bb);
-      confirmBet();
-    }
+    if (allin) onAction(state.bet.kind, allin.to_bb);
   } else if (k === "enter" && state.bet) {
     ev.preventDefault();
     confirmBet();
@@ -257,7 +249,7 @@ function onKey(ev) {
     nudge(-1);
   } else if (state.bet && k >= "1" && k <= "4") {
     const p = state.bet.presets[Number(k) - 1];
-    if (p) setBetTo(p.to_bb);
+    if (p) onAction(state.bet.kind, p.to_bb);
   }
 }
 

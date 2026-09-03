@@ -37,6 +37,8 @@ def test_pages_and_api():
         assert st == 200
         text = html.decode("utf-8")
         assert "PokerGym" in text
+        assert "fonts.googleapis" not in text
+        assert "gto-grid" in text
         assert "/js/app.js" in text
         assert "id=\"legal\"" in text
         assert "id=\"bet-amount\"" in text

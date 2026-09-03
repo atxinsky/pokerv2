@@ -13,6 +13,12 @@ function visIndex(seat, hero, n) {
   return (seat - hero + n) % n;
 }
 
+const SUIT = { c: "♣", d: "♦", h: "♥", s: "♠" };
+
+function rankShow(r) {
+  return r === "T" ? "10" : r;
+}
+
 function cardEl(c, hidden) {
   const d = document.createElement("div");
   if (hidden) {
@@ -20,8 +26,21 @@ function cardEl(c, hidden) {
     d.title = "未亮牌";
     return d;
   }
-  d.className = "pcard" + (c.red ? " red" : "");
-  d.innerHTML = `<span class="r">${c.rank}</span><span class="s">${{c:"♣",d:"♦",h:"♥",s:"♠"}[c.suit]}</span>`;
+  const su = SUIT[c.suit];
+  const rk = c.rank;
+  d.className = "pcard " + (c.red ? "red" : "black") + " rank-" + rk;
+  let face = "";
+  if (rk === "A") {
+    face = `<span class="pip ace">${su}</span>`;
+  } else if ("JQK".includes(rk)) {
+    face = `<span class="pip face">${rk}${su}</span>`;
+  } else {
+    const n = rk === "T" ? 10 : Number(rk);
+    const pips = Array.from({ length: n }, () => `<i>${su}</i>`).join("");
+    face = `<span class="pips p${n}">${pips}</span>`;
+  }
+  d.innerHTML = `<span class="corner"><b>${rankShow(rk)}</b><i>${su}</i></span>${face}`;
+  d.title = rankShow(rk) + su;
   return d;
 }
 
@@ -140,9 +159,17 @@ function renderHistory(state) {
     const detail = (h.log || []).map((a) => `${a.name} ${logText(a)}`).join(" · ");
     li.innerHTML = `<div class="row"><b>#${h.hand_idx + 1}</b><span class="delta ${cls}">${dlt}bb</span></div>`;
     li.append(hole, board);
+    const rev = h.review || {};
+    if (rev.summary) {
+      const sm = document.createElement("p");
+      sm.className = "hist-sum";
+      sm.textContent = rev.summary;
+      li.append(sm);
+    }
     const d = document.createElement("div");
     d.className = "hist-detail";
-    d.textContent = detail || "无行动";
+    const notes = (rev.notes || []).join(" ");
+    d.textContent = [notes, detail].filter(Boolean).join(" · ") || "无行动";
     li.append(d);
     li.addEventListener("click", () => li.classList.toggle("open"));
     ol.append(li);
@@ -150,19 +177,30 @@ function renderHistory(state) {
 }
 
 function renderCoach(state) {
+  const c = state.coach;
+  const eqEl = document.getElementById("eq-big");
+  const adv = document.getElementById("advice");
+  if (!c) {
+    eqEl.textContent = "—";
+    adv.textContent = "发牌后给出这个位置该怎么打";
+  } else {
+    const eq = c.equity != null ? c.equity : c.equity_est;
+    eqEl.textContent = eq == null ? "翻前" : `胜率 ${Math.round(eq * 100)}%`;
+    const act = c.action_zh ? `建议：${c.action_zh}` : "";
+    const size = c.size_hint ? ` ${c.size_hint}。` : "";
+    adv.textContent = [act, c.why, size].filter(Boolean).join(" ");
+  }
   const dl = document.getElementById("coach-dl");
   dl.replaceChildren();
-  const c = state.coach;
   const rows = c
     ? [
+        ["手牌", c.code || "—"],
         ["位置", c.position],
         ["SPR", c.spr],
         ["赔率", c.pot_odds ? Math.round(c.pot_odds * 100) + "%" : "—"],
         ["MDF", c.mdf ? Math.round(c.mdf * 100) + "%" : "—"],
         ["牌力", c.hand_class_zh],
-        ["结构", c.texture_zh || "—"],
-        ["胜率估", c.equity_est == null ? "—" : Math.round(c.equity_est * 100) + "%"],
-        ["对手", c.n_opponents],
+        ["结构", c.texture_zh || c.texture || "—"],
       ]
     : [["—", "还没发牌"]];
   for (const [k, v] of rows) {
@@ -173,6 +211,29 @@ function renderCoach(state) {
     dl.append(dt, dd);
   }
   document.getElementById("tags").textContent = (state.tags || []).join(" · ");
+  document.getElementById("chart-title").textContent = (c && c.chart_title) || "范围图";
+  renderGrid(c && c.grid);
+  const pill = document.getElementById("llm-pill");
+  if (state.llm) {
+    pill.textContent = state.llm.enabled ? "DeepSeek 接通" : "规则人格";
+    pill.classList.toggle("on", !!state.llm.enabled);
+    pill.title = state.llm.hint || "";
+  }
+}
+
+function renderGrid(grid) {
+  const el = document.getElementById("gto-grid");
+  el.replaceChildren();
+  if (!grid) return;
+  for (const row of grid) {
+    for (const cell of row) {
+      const i = document.createElement("i");
+      i.textContent = cell.code;
+      if (cell.on) i.classList.add("on");
+      if (cell.hero) i.classList.add("hero");
+      el.append(i);
+    }
+  }
 }
 
 function renderMast(state) {
@@ -199,6 +260,9 @@ function renderSlip(state) {
     li.textContent = "无人收池";
     ul.append(li);
   }
+  const rv = document.getElementById("slip-review");
+  const last = (state.history || [])[state.history.length - 1];
+  rv.textContent = last && last.review ? last.review.summary || "" : "";
 }
 
 function renderAll(state) {

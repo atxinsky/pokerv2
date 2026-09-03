@@ -163,6 +163,7 @@ def _history(sess: LiveSession) -> list[dict]:
                 "hole": [card_dto(c) for c in hole],
                 "board": [card_dto(c) for c in board],
                 "log": log,
+                "review": rec.get("review") or {},
             }
         )
     return out
@@ -332,4 +333,5 @@ def dump_state(sess: LiveSession) -> dict:
         "last_event": sess.last_event,
         "tags": [TAG_ZH.get(t, t) for t in sess.last_tags],
         "winners": winners,
+        "llm": getattr(sess, "llm", {"enabled": False, "hint": "未接通"}),
     }

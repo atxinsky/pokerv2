@@ -24,6 +24,8 @@ uv run python -m pokergym play --seed 1
 
 `ui` 会起本地夜场窗口（Edge/Chrome `--app`，否则系统浏览器）。
 
+对手拟人（C/B 层）接 DeepSeek：在 `D:\pokerv2\.env` 写入 `DEEPSEEK_API_KEY`。没密钥时用规则人格，牌局不阻塞。动作仍由引擎采样，LLM 只改性格和适应。
+
 快捷键：`F` 弃 · `X` 过 · `C` 跟 · 空格 过/跟 · `A` 全下 · 回车 确认尺度 / 下一手。
 
 `play` 输入：`f` 弃 / `x` 过 / `c` 跟 / `b 12` 下注到 12bb / `r 9` 加到 9bb / `a` 全下 / `q` 退出。

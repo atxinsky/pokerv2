@@ -13,8 +13,9 @@
   --room: oklch(0.15 0.022 48);
   --panel: oklch(0.19 0.024 50);
   --danger: oklch(0.55 0.12 28);
-  --font-display: "Fraunces", "Noto Serif SC", serif;
-  --font-body: "Noto Serif SC", "Songti SC", serif;
+  --font-display: "Cambria", "Georgia", "Songti SC", serif;
+  --font-body: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-card: Consolas, "Cascadia Mono", "Courier New", ui-monospace, monospace;
   --space: 8px;
 }
 
@@ -192,6 +193,7 @@ body {
   font-size: 0.75rem;
 }
 .hist-item.open .hist-detail { display: block; }
+.hist-sum { margin: 4px 0 0; color: var(--cream); font-size: 0.8rem; }
 
 .coach dl {
   margin: 0;
@@ -207,6 +209,53 @@ body {
   font-variant-numeric: tabular-nums;
 }
 .tags { min-height: 1.5em; color: var(--brass); font-size: 0.85rem; }
+.eq-big {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--lamp);
+}
+.advice {
+  margin: 0 0 12px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--cream);
+}
+.gto {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 1px;
+  background: oklch(0.12 0.02 50);
+  padding: 1px;
+  max-width: 260px;
+}
+.gto i {
+  display: block;
+  aspect-ratio: 1;
+  font-style: normal;
+  font-size: 0.48rem;
+  text-align: center;
+  line-height: 1.7;
+  font-family: var(--font-card);
+  color: oklch(0.55 0.02 70);
+  background: oklch(0.22 0.02 50);
+}
+.gto i.on { background: oklch(0.42 0.08 150); color: var(--cream); }
+.gto i.hero {
+  box-shadow: inset 0 0 0 2px var(--lamp);
+  color: var(--lamp);
+  font-weight: 800;
+}
+.gto-cap { font-size: 0.68rem; color: var(--cream-dim); margin: 6px 0 0; }
+.llm-pill {
+  margin: 0;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border: 1px solid oklch(0.4 0.04 70 / 0.5);
+  color: var(--cream-dim);
+}
+.llm-pill.on { color: var(--lamp); border-color: var(--brass); }
 
 .stage {
   grid-area: stage;
@@ -364,29 +413,85 @@ body {
 }
 
 .pcard {
-  width: 40px;
-  height: 58px;
-  border-radius: 4px;
-  background: oklch(0.96 0.02 92);
+  width: 42px;
+  height: 60px;
+  border-radius: 3px;
+  background: oklch(0.96 0.015 92);
   color: var(--club);
-  display: flex;
-  flex-direction: column;
-  padding: 3px 5px;
-  font-family: var(--font-display);
-  font-weight: 720;
-  line-height: 1;
+  position: relative;
   box-shadow: 0 2px 4px oklch(0.1 0.02 50 / 0.35);
+  overflow: hidden;
 }
 .pcard.red { color: var(--heart); }
-.pcard .r { font-size: 1.05rem; }
-.pcard .s { font-size: 0.95rem; margin-top: auto; }
+.pcard .corner {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  line-height: 1;
+  z-index: 1;
+}
+.pcard .corner b {
+  display: block;
+  font-family: var(--font-card);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+.pcard.rank-A .corner b {
+  font-family: "Palatino Linotype", Palatino, "Times New Roman", serif;
+  font-style: italic;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+.pcard.rank-4 .corner b {
+  font-family: var(--font-card);
+  font-size: 0.85rem;
+}
+.pcard .corner i { font-style: normal; font-size: 0.62rem; display: block; }
+.pcard .pip.ace {
+  position: absolute;
+  inset: 16px 0 4px;
+  display: grid;
+  place-items: center;
+  font-size: 1.45rem;
+}
+.pcard .pip.face {
+  position: absolute;
+  inset: 18px 0 4px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-card);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.pcard .pips {
+  position: absolute;
+  inset: 16px 5px 5px;
+  display: grid;
+  place-items: center;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+.pcard .pips.p4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  font-size: 0.72rem;
+}
+.pcard .pips.p2 { grid-template-rows: 1fr 1fr; }
+.pcard .pips.p3 { grid-template-rows: 1fr 1fr 1fr; }
+.pcard .pips.p5, .pcard .pips.p6, .pcard .pips.p7, .pcard .pips.p8, .pcard .pips.p9, .pcard .pips.p10 {
+  grid-template-columns: 1fr 1fr;
+  font-size: 0.5rem;
+}
 .pcard.back {
   background:
     repeating-linear-gradient(45deg, oklch(0.32 0.05 25), oklch(0.32 0.05 25) 4px, oklch(0.28 0.04 25) 4px 8px);
   color: transparent;
   box-shadow: inset 0 0 0 3px oklch(0.7 0.08 80 / 0.5);
 }
-.board .pcard { width: 46px; height: 66px; }
+.board .pcard { width: 52px; height: 74px; }
+.board .pcard .corner b { font-size: 0.95rem; }
+.board .pcard.rank-A .pip.ace { font-size: 1.8rem; }
+.board .pcard .pips.p4 { font-size: 0.9rem; }
 
 .tray {
   grid-area: tray;
@@ -422,6 +527,36 @@ body {
   font-weight: 700;
 }
 .legal button:disabled { opacity: 0.35; cursor: not-allowed; }
+.sizes { display: flex; gap: 6px; flex-wrap: wrap; }
+.sizes button {
+  background: var(--brass);
+  color: var(--ink);
+  border: 0;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  min-width: 64px;
+}
+.sizes button small { display: block; font-weight: 600; opacity: 0.8; }
+.sizes button:hover { filter: brightness(1.08); }
+.custom-bet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--cream-dim);
+  font-size: 0.82rem;
+}
+.custom-bet #bet-confirm {
+  background: transparent;
+  color: var(--lamp);
+  border: 1px solid var(--brass);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
 .betbox {
   display: flex;
   flex-wrap: wrap;
@@ -429,9 +564,6 @@ body {
   gap: 8px 12px;
   flex: 1;
   min-width: 280px;
-  padding: 8px 10px;
-  border: 1px solid oklch(0.4 0.04 70 / 0.35);
-  background: oklch(0.2 0.024 50);
 }
 .bet-amt {
   display: flex;
