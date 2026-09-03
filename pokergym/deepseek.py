@@ -51,7 +51,13 @@ def status() -> dict:
     }
 
 
-def chat_json(system: str, user: str, timeout: float = 12.0) -> dict | None:
+def chat_json(
+    system: str,
+    user: str,
+    timeout: float = 12.0,
+    temperature: float = 0.7,
+    max_tokens: int = 700,
+) -> dict | None:
     global LAST_ERROR
     load_dotenv()
     key = os.environ.get("DEEPSEEK_API_KEY")
@@ -61,8 +67,8 @@ def chat_json(system: str, user: str, timeout: float = 12.0) -> dict | None:
     model = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
     body = {
         "model": model,
-        "temperature": 0.7,
-        "max_tokens": 700,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system},

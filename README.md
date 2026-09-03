@@ -24,7 +24,11 @@ uv run python -m pokergym play --seed 1
 
 `ui` 会起本地夜场窗口（Edge/Chrome `--app`，否则系统浏览器）。
 
-对手拟人（C/B 层）接 DeepSeek：在 `D:\pokerv2\.env` 写入 `DEEPSEEK_API_KEY`。没密钥时用规则人格，牌局不阻塞。动作仍由引擎采样，LLM 只改性格和适应。
+对手拟人（C/B 层）接 DeepSeek：在 `D:\pokerv2\.env` 写入 `DEEPSEEK_API_KEY`。没密钥时用规则人格，牌局不阻塞。
+
+**全 LLM 出牌模式**（设置页开关，或环境变量 `POKERGYM_LLM_BRAIN=1`）：每个 bot 每次行动都实时问 DeepSeek，按人设（鱼/岩石/TAG/LAG/疯子 + 今晚状态 + 老毛病）做决定，还会飙嘴炮（座位气泡）。慢（每决策约 1 秒）且烧钱；LLM 超时/乱答时引擎自动兜底，牌局永不卡死。只剩一种合法动作时不调 LLM。LLM 只能看到 BotView 公开信息，CI 断言你的底牌进不了 prompt。
+
+不开此模式时：动作仍由引擎采样，LLM 只改性格和适应。
 
 快捷键：`F` 弃 · `X` 过 · `C` 跟 · 空格 过/跟 · `A` 全下 · 回车 确认尺度 / 下一手。
 

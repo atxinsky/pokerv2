@@ -312,6 +312,7 @@ def dump_state(sess: LiveSession) -> dict:
                 "hole": hole,
                 "hole_hidden": (not is_hero) and (p.seat not in revealed) and (not p.folded) and sess.hand_open,
                 "hud": hud,
+                "say": None if is_hero else sess.says.get(p.seat),
             }
         )
     coach = None

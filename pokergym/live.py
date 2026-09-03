@@ -50,6 +50,7 @@ class LiveSession:
         self.hand_open = False
         self.finished_recorded = False
         self.archive: list[dict] = []
+        self.says: dict[int, str] = {}  # 每个座位最近一句嘴炮
 
     def waiting(self) -> str:
         if not self.hand_open:
@@ -66,6 +67,7 @@ class LiveSession:
         self.finished_recorded = False
         self.last_tags = []
         self.last_event = None
+        self.says = {}
 
     def _event(self, seat: int, action: Action) -> dict:
         return {
@@ -152,14 +154,34 @@ class LiveSession:
             maybe_adapt(b, self.hist, self.hero_seat, self.st.hand_idx, self.mode, self.rng)
         adapt_bots_async(self.bots, self.hist, self.hero_seat, self.st.hand_idx, self.mode)
 
+    def _names(self) -> dict[int, str]:
+        return {s: self._name(s) for s in range(self.n)}
+
     def step_bot(self) -> dict | None:
         if self.waiting() != "bot":
             self._finish_if_needed()
             return None
         seat = self.st.to_act
-        action = decide(self.st, self.bots[seat], self.rng, lost_big=self.lost_big[seat])
+        bot = self.bots[seat]
+        say = ""
+        action = None
+        from pokergym.llm_brain import brain_enabled, decide_llm
+
+        if brain_enabled():
+            try:
+                out = decide_llm(self.st, bot, self._names(), lost_big=self.lost_big[seat])
+            except Exception:
+                out = None
+            if out:
+                action, say = out
+        if action is None:
+            # 引擎兜底：LLM 关了/失败/无需决策时牌局照走
+            action = decide(self.st, bot, self.rng, lost_big=self.lost_big[seat])
         apply_action(self.st, action)
         self.last_event = self._event(seat, action)
+        if say:
+            self.last_event["say"] = say
+            self.says[seat] = say
         self._finish_if_needed()
         return self.last_event
 

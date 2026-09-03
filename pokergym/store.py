@@ -98,6 +98,8 @@ def apply_env() -> None:
         os.environ["DEEPSEEK_MODEL"] = model
     enabled = get_setting("llm_enabled", "1")
     os.environ["POKERGYM_LLM"] = enabled if enabled in ("0", "1") else "1"
+    brain = get_setting("llm_brain", "0")
+    os.environ["POKERGYM_LLM_BRAIN"] = brain if brain in ("0", "1") else "0"
 
 
 def public_settings() -> dict:
@@ -111,6 +113,7 @@ def public_settings() -> dict:
         "deepseek_base": get_setting("deepseek_base", "https://api.deepseek.com"),
         "deepseek_model": get_setting("deepseek_model", "deepseek-chat"),
         "llm_enabled": get_setting("llm_enabled", "1") != "0",
+        "llm_brain": get_setting("llm_brain", "0") == "1",
         "hint": "密钥只发往 DeepSeek 官方接口，牌谱存在本机 SQLite，不走 Google。",
     }
 
@@ -118,6 +121,8 @@ def public_settings() -> dict:
 def save_settings(payload: dict) -> dict:
     if "llm_enabled" in payload:
         set_setting("llm_enabled", "1" if payload.get("llm_enabled") else "0")
+    if "llm_brain" in payload:
+        set_setting("llm_brain", "1" if payload.get("llm_brain") else "0")
     if payload.get("deepseek_base"):
         set_setting("deepseek_base", str(payload["deepseek_base"]).strip())
     if payload.get("deepseek_model"):

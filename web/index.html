@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PokerGym · 夜场</title>
-  <link rel="stylesheet" href="/css/app.css?v=6" />
+  <link rel="stylesheet" href="/css/app.css?v=7" />
 </head>
 <body>
   <div class="room">
@@ -91,6 +91,9 @@
     <label>启用大模型
       <input type="checkbox" id="set-llm" checked />
     </label>
+    <label>全 LLM 出牌（每个 bot 每次行动都问 DeepSeek，慢且烧钱，但最像真人）
+      <input type="checkbox" id="set-brain" />
+    </label>
     <label>DeepSeek API Key
       <input type="password" id="set-key" autocomplete="off" placeholder="sk-..." />
     </label>
@@ -115,8 +118,8 @@
     <button type="button" class="primary" id="btn-next">下一手</button>
   </section>
 
-  <script src="/js/api.js?v=6"></script>
-  <script src="/js/render.js?v=6"></script>
-  <script src="/js/app.js?v=6"></script>
+  <script src="/js/api.js?v=7"></script>
+  <script src="/js/render.js?v=7"></script>
+  <script src="/js/app.js?v=7"></script>
 </body>
 </html>

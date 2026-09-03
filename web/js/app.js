@@ -300,6 +300,7 @@ async function openSettings() {
   try {
     const s = await api.settings();
     $("set-llm").checked = !!s.llm_enabled;
+    $("set-brain").checked = !!s.llm_brain;
     $("set-key").value = "";
     $("set-key").placeholder = s.deepseek_key_masked || "sk-...";
     $("set-base").value = s.deepseek_base || "https://api.deepseek.com";
@@ -329,6 +330,7 @@ $("btn-save-set").addEventListener("click", async () => {
     $("set-hint").textContent = "正在保存并测试 DeepSeek…";
     await save({
       llm_enabled: $("set-llm").checked,
+      llm_brain: $("set-brain").checked,
       deepseek_key: $("set-key").value,
       deepseek_base: $("set-base").value,
       deepseek_model: $("set-model").value,
