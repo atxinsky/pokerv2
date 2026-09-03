@@ -19,4 +19,6 @@ const api = {
   hand: () => api.post("/api/hand", {}),
   step: () => api.post("/api/step", {}),
   act: (kind, to_bb) => api.post("/api/action", { kind, to_bb }),
+  settings: () => api.get("/api/settings"),
+  saveSettings: (body) => api.post("/api/settings", body),
 };

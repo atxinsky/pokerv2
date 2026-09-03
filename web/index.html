@@ -23,6 +23,7 @@
         </select>
       </label>
       <button type="button" class="ghost" id="btn-new">换一桌</button>
+      <button type="button" class="ghost" id="btn-settings">设置</button>
     </header>
 
     <aside class="tape" aria-label="记录">
@@ -33,6 +34,9 @@
       </div>
       <ol id="log"></ol>
       <ol id="hist" hidden></ol>
+      <p class="hist-actions" id="hist-actions" hidden>
+        <a href="/api/export.json" download="pokergym-hands.json">下载牌谱 JSON</a>
+      </p>
     </aside>
 
     <main class="stage">
@@ -78,6 +82,29 @@
       </div>
     </footer>
   </div>
+
+  <section class="sheet" id="settings" hidden>
+    <h2>设置</h2>
+    <p class="gto-cap">DeepSeek Key 只存在本机 SQLite，请求只打 api.deepseek.com。牌谱也在本地，不经过 Google。</p>
+    <label>启用大模型
+      <input type="checkbox" id="set-llm" checked />
+    </label>
+    <label>DeepSeek API Key
+      <input type="password" id="set-key" autocomplete="off" placeholder="sk-..." />
+    </label>
+    <label>接口
+      <input type="text" id="set-base" value="https://api.deepseek.com" />
+    </label>
+    <label>模型
+      <input type="text" id="set-model" value="deepseek-chat" />
+    </label>
+    <p class="gto-cap" id="set-hint"></p>
+    <ol class="llm-log" id="llm-log"></ol>
+    <div class="sheet-btns">
+      <button type="button" class="primary" id="btn-save-set">保存并换一桌</button>
+      <button type="button" class="ghost" id="btn-close-set">关闭</button>
+    </div>
+  </section>
 
   <section class="slip" id="slip" hidden>
     <h2>这手完了</h2>

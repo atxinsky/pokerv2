@@ -10,6 +10,9 @@ from urllib.parse import urlparse
 
 from pokergym.live import LiveSession
 from pokergym.serialize import dump_state
+from pokergym.store import apply_env, export_hands, public_settings, save_settings
+
+apply_env()
 
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 
@@ -63,6 +66,18 @@ class Handler(SimpleHTTPRequestHandler):
             with _lock:
                 self._json(dump_state(get_session()))
             return
+        if path == "/api/settings":
+            self._json(public_settings())
+            return
+        if path == "/api/export.json":
+            raw = json.dumps(export_hands(), ensure_ascii=False, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", "attachment; filename=pokergym-hands.json")
+            self.send_header("Content-Length", str(len(raw)))
+            self.end_headers()
+            self.wfile.write(raw)
+            return
         if path == "/":
             self.path = "/index.html"
         return SimpleHTTPRequestHandler.do_GET(self)
@@ -75,6 +90,11 @@ class Handler(SimpleHTTPRequestHandler):
             self._json({"error": "JSON 无效"}, 400)
             return
         with _lock:
+            if path == "/api/settings":
+                info = save_settings(payload)
+                apply_env()
+                self._json(info)
+                return
             if path == "/api/new":
                 seed = int(payload.get("seed", 1))
                 mode = payload.get("mode", "train")

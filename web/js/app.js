@@ -209,6 +209,7 @@ function setTape(tab) {
   $("tab-hist").classList.toggle("on", tab === "hist");
   $("log").hidden = tab !== "live";
   $("hist").hidden = tab !== "hist";
+  $("hist-actions").hidden = tab !== "hist";
 }
 
 function onKey(ev) {
@@ -268,6 +269,48 @@ $("mode").addEventListener("change", newTable);
 $("tab-live").addEventListener("click", () => setTape("live"));
 $("tab-hist").addEventListener("click", () => setTape("hist"));
 document.addEventListener("keydown", onKey);
+
+async function openSettings() {
+  const box = $("settings");
+  box.hidden = false;
+  try {
+    const s = await api.settings();
+    $("set-llm").checked = !!s.llm_enabled;
+    $("set-key").value = "";
+    $("set-key").placeholder = s.deepseek_key_masked || "sk-...";
+    $("set-base").value = s.deepseek_base || "https://api.deepseek.com";
+    $("set-model").value = s.deepseek_model || "deepseek-chat";
+    $("set-hint").textContent = s.hint || "";
+  } catch (e) {
+    $("set-hint").textContent = String(e.message || e);
+  }
+  const log = $("llm-log");
+  log.replaceChildren();
+  for (const row of (state && state.llm && state.llm.log) || []) {
+    const li = document.createElement("li");
+    li.textContent = row.msg;
+    log.append(li);
+  }
+}
+
+$("btn-settings").addEventListener("click", openSettings);
+$("btn-close-set").addEventListener("click", () => {
+  $("settings").hidden = true;
+});
+$("btn-save-set").addEventListener("click", async () => {
+  try {
+    await api.saveSettings({
+      llm_enabled: $("set-llm").checked,
+      deepseek_key: $("set-key").value,
+      deepseek_base: $("set-base").value,
+      deepseek_model: $("set-model").value,
+    });
+    $("settings").hidden = true;
+    await newTable();
+  } catch (e) {
+    $("set-hint").textContent = String(e.message || e);
+  }
+});
 
 (async function boot() {
   try {

@@ -31,7 +31,12 @@ def format_digest(d: dict) -> str:
 
 
 def enrich_bots_async(bots: dict, rng_seed: int = 1) -> None:
-    if not available() or not bots:
+    from pokergym.store import log_llm
+
+    if not bots:
+        return
+    if not available():
+        log_llm("未填 DeepSeek Key，对手用规则人格（设置里保存 Key 后换桌）")
         return
 
     def work():
@@ -55,8 +60,12 @@ def enrich_bots_async(bots: dict, rng_seed: int = 1) -> None:
             "禁止计算胜率。"
         )
         user = "生成这些座位的人格：\n" + json_dumps(payload)
+        from pokergym.store import log_llm
+
+        log_llm("正在调用 DeepSeek 生成对手人格…")
         data = chat_json(sys, user, timeout=14)
         if not data or "bots" not in data:
+            log_llm("人格生成失败，继续用规则昵称")
             return
         with _lock:
             for item in data["bots"]:
@@ -99,6 +108,10 @@ def enrich_bots_async(bots: dict, rng_seed: int = 1) -> None:
                 if leaks:
                     bot.leaks = leaks[:2]
                 bot.hero_notes = ["DeepSeek 人格已加载"][:3]
+        names = [bots[s].name for s in bots]
+        from pokergym.store import log_llm as _log
+
+        _log("人格已写入：" + "、".join(n.rstrip("0123456789") for n in names[:7]))
 
     threading.Thread(target=work, daemon=True).start()
 
@@ -139,8 +152,12 @@ def adapt_bots_async(bots: dict, hands, hero_seat: int, hand_idx: int, mode: str
             "松被动不会突然猛诈唬。样本少就少改。"
         )
         user = f"对手摘要：\n{text}\n\n这些座位要调整：\n{json_dumps(specs)}"
+        from pokergym.store import log_llm
+
+        log_llm("DeepSeek 正在根据你的统计调整对手…")
         data = chat_json(sys, user, timeout=14)
         if not data:
+            log_llm("适应调用失败，本轮仍用规则调整")
             return
         with _lock:
             for item in data.get("updates") or []:

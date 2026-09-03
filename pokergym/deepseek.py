@@ -9,6 +9,8 @@ import urllib.request
 
 from pokergym.envload import load_dotenv
 
+LAST_ERROR = ""
+
 ALLOWED_DELTA = (
     "threebet_freq",
     "squeeze_freq",
@@ -23,22 +25,34 @@ ALLOWED_DELTA = (
 
 def available() -> bool:
     load_dotenv()
+    try:
+        from pokergym.store import apply_env
+
+        apply_env()
+    except Exception:
+        pass
     if os.environ.get("POKERGYM_LLM", "1") == "0":
         return False
     return bool(os.environ.get("DEEPSEEK_API_KEY"))
 
 
 def status() -> dict:
-    load_dotenv()
     on = available()
+    hint = "DeepSeek 已接通，对手人格/适应走大模型"
+    if not on:
+        hint = "设置里填 DeepSeek Key 才会调用大模型；没 Key 用规则人格"
+    if LAST_ERROR:
+        hint = f"DeepSeek 失败：{LAST_ERROR}"
     return {
         "enabled": on,
         "model": os.environ.get("DEEPSEEK_MODEL", "deepseek-chat") if on else None,
-        "hint": "DeepSeek 已接通，对手会读你" if on else "未配置 DEEPSEEK_API_KEY，对手用规则人格",
+        "hint": hint,
+        "error": LAST_ERROR or None,
     }
 
 
 def chat_json(system: str, user: str, timeout: float = 12.0) -> dict | None:
+    global LAST_ERROR
     load_dotenv()
     key = os.environ.get("DEEPSEEK_API_KEY")
     if not key:
@@ -73,8 +87,10 @@ def chat_json(system: str, user: str, timeout: float = 12.0) -> dict | None:
             text = text.strip("`")
             if text.startswith("json"):
                 text = text[4:]
+        LAST_ERROR = ""
         return json.loads(text)
-    except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError, IndexError):
+    except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError, IndexError, OSError) as e:
+        LAST_ERROR = type(e).__name__
         return None
 
 

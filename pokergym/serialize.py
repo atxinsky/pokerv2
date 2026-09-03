@@ -135,7 +135,54 @@ def _bet_ui(sess: LiveSession) -> dict | None:
     }
 
 
+def _as_cards(xs) -> list[dict]:
+    if not xs:
+        return []
+    if isinstance(xs[0], dict):
+        return list(xs)
+    return [card_dto(int(c)) for c in xs]
+
+
 def _history(sess: LiveSession) -> list[dict]:
+    stored = []
+    try:
+        from pokergym.store import list_hands
+
+        stored = list_hands(40)
+    except Exception:
+        stored = []
+    src = stored if stored else None
+    if src is not None:
+        out = []
+        for rec in src:
+            log = []
+            for a in rec.get("log") or []:
+                if isinstance(a, dict):
+                    log.append(
+                        {
+                            "name": a.get("name") or f"#{a.get('seat')}",
+                            "street_zh": STREET_ZH.get(a.get("street", ""), a.get("street", "")),
+                            "kind_zh": KIND_ZH.get(a.get("kind", ""), a.get("kind", "")),
+                            "put_bb": _bb(int(a.get("put_chips") or 0)),
+                            "to_bb": _bb(int(a.get("to_chips") or 0)),
+                            "kind": a.get("kind"),
+                        }
+                    )
+            out.append(
+                {
+                    "hand_idx": rec.get("hand_idx"),
+                    "delta_bb": rec.get("delta_bb"),
+                    "folded": rec.get("folded"),
+                    "vpip": rec.get("vpip"),
+                    "pfr": rec.get("pfr"),
+                    "tags": [TAG_ZH.get(t, t) for t in rec.get("tags") or []],
+                    "hole": _as_cards(rec.get("hole") or []),
+                    "board": _as_cards(rec.get("board") or []),
+                    "log": log,
+                    "review": rec.get("review") or {},
+                }
+            )
+        return out
     out = []
     for rec in sess.archive[-40:]:
         hole = rec.get("hole") or ()
@@ -251,6 +298,7 @@ def dump_state(sess: LiveSession) -> dict:
                 "archetype": None if is_hero else (bot.archetype if bot else None),
                 "archetype_zh": None if is_hero else (ARCHETYPE_ZH.get(bot.archetype) if bot else None),
                 "session_zh": None if is_hero else (SESSION_ZH.get(bot.session.kind, "") if bot else None),
+                "notes": None if is_hero else (list(bot.hero_notes) if bot else []),
                 "position": st.pos_name(p.seat),
                 "stack_bb": _bb(p.stack),
                 "bet_bb": _bb(p.bet_street),
@@ -333,5 +381,18 @@ def dump_state(sess: LiveSession) -> dict:
         "last_event": sess.last_event,
         "tags": [TAG_ZH.get(t, t) for t in sess.last_tags],
         "winners": winners,
-        "llm": getattr(sess, "llm", {"enabled": False, "hint": "未接通"}),
+        "llm": _llm_dto(sess),
     }
+
+
+def _llm_dto(sess: LiveSession) -> dict:
+    from pokergym.deepseek import status
+
+    info = status()
+    try:
+        from pokergym.store import llm_logs
+
+        info["log"] = llm_logs(8)
+    except Exception:
+        info["log"] = []
+    return info

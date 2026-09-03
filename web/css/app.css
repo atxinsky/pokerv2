@@ -366,6 +366,11 @@ body {
   font-size: 0.72rem;
   color: var(--cream-dim);
 }
+.notes {
+  margin: 2px 0 0;
+  font-size: 0.68rem;
+  color: var(--lamp);
+}
 .stack {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
@@ -624,6 +629,36 @@ body {
 }
 #bet-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.sheet {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, 92vw);
+  background: oklch(0.18 0.024 50);
+  color: var(--cream);
+  padding: 20px 22px;
+  border: 1px solid oklch(0.4 0.04 70 / 0.5);
+  z-index: 20;
+  max-height: 80vh;
+  overflow: auto;
+}
+.sheet h2 { margin: 0 0 10px; }
+.sheet label { display: block; margin: 10px 0; font-size: 0.85rem; color: var(--cream-dim); }
+.sheet input[type="text"], .sheet input[type="password"] {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  background: oklch(0.14 0.02 50);
+  color: var(--cream);
+  border: 1px solid oklch(0.4 0.04 70 / 0.5);
+  font-family: inherit;
+}
+.sheet-btns { display: flex; gap: 8px; margin-top: 14px; }
+.llm-log { font-size: 0.75rem; color: var(--cream-dim); padding-left: 1.1em; }
+.hist-actions { margin-top: 10px; }
+.hist-actions a { color: var(--lamp); }
 .slip {
   position: fixed;
   right: 24px;

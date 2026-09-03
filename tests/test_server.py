@@ -43,6 +43,12 @@ def test_pages_and_api():
         assert "id=\"legal\"" in text
         assert "id=\"bet-amount\"" in text
         assert "id=\"hist\"" in text
+        assert "id=\"settings\"" in text
+        assert "btn-settings" in text
+        st, stg = _get(port, "/api/settings")
+        assert st == 200
+        info = json.loads(stg.decode())
+        assert "has_key" in info
         st, css = _get(port, "/css/app.css")
         assert st == 200
         assert b"--felt" in css

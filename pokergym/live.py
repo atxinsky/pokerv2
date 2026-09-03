@@ -80,30 +80,60 @@ class LiveSession:
         self.hist.append(h)
         self.finished_recorded = True
         hero = self.st.players[self.hero_seat]
-        self.archive.append(
-            {
-                "hand_idx": self.st.hand_idx,
-                "delta_bb": round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
-                "hole": self.st.holes.get(self.hero_seat),
-                "board": tuple(self.st.board),
-                "log": list(self.st.action_log),
-                "winners": list(self.st.winners),
-                "revealed": dict(self.st.revealed),
-                "tags": list(self.last_tags),
-                "folded": hero.folded,
-                "vpip": bool(h.vpip.get(self.hero_seat)),
-                "pfr": bool(h.pfr.get(self.hero_seat)),
-                "review": review_hand(
-                    self.st.holes.get(self.hero_seat),
-                    self.st.pos_name(self.hero_seat),
-                    self.st.action_log,
-                    list(self.last_tags),
-                    round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
-                ),
-            }
-        )
+        rec = {
+            "hand_idx": self.st.hand_idx,
+            "delta_bb": round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
+            "hole": self.st.holes.get(self.hero_seat),
+            "board": tuple(self.st.board),
+            "log": list(self.st.action_log),
+            "winners": list(self.st.winners),
+            "revealed": dict(self.st.revealed),
+            "tags": list(self.last_tags),
+            "folded": hero.folded,
+            "vpip": bool(h.vpip.get(self.hero_seat)),
+            "pfr": bool(h.pfr.get(self.hero_seat)),
+            "review": review_hand(
+                self.st.holes.get(self.hero_seat),
+                self.st.pos_name(self.hero_seat),
+                self.st.action_log,
+                list(self.last_tags),
+                round((hero.stack - self.st.start_stack) / CHIP_PER_BB, 2),
+            ),
+        }
+        self.archive.append(rec)
         if len(self.archive) > 80:
             self.archive = self.archive[-80:]
+        try:
+            from pokergym.store import insert_hand
+
+            insert_hand(
+                {
+                    "seed": self.seed,
+                    "mode": self.mode,
+                    "hand_idx": rec["hand_idx"],
+                    "delta_bb": rec["delta_bb"],
+                    "folded": rec["folded"],
+                    "vpip": rec["vpip"],
+                    "pfr": rec["pfr"],
+                    "tags": rec["tags"],
+                    "review": rec["review"],
+                    "hole": list(rec["hole"] or ()),
+                    "board": list(rec["board"] or ()),
+                    "log": [
+                        {
+                            "seat": a.seat,
+                            "name": self._name(a.seat),
+                            "street": a.street,
+                            "kind": a.kind,
+                            "put_chips": a.put_chips,
+                            "to_chips": a.to_chips,
+                        }
+                        for a in rec["log"]
+                    ],
+                }
+            )
+        except Exception:
+            pass
         for s in range(self.n):
             won = h.won_chips.get(s, 0)
             self.lost_big[s] = won == 0 and any(v >= 2000 for v in h.won_chips.values())

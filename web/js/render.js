@@ -33,7 +33,7 @@ function cardEl(c, hidden) {
   if (rk === "A") {
     face = `<span class="pip ace">${su}</span>`;
   } else if ("JQK".includes(rk)) {
-    face = `<span class="pip face">${rk}${su}</span>`;
+    face = `<span class="pip face">${rk}</span>`;
   } else {
     const n = rk === "T" ? 10 : Number(rk);
     const pips = Array.from({ length: n }, () => `<i>${su}</i>`).join("");
@@ -80,6 +80,7 @@ function renderSeats(state) {
       </div>
       <p class="name">${s.name}${s.allin ? " · 全下" : ""}</p>
       <p class="meta">${sub}${hud ? " · " + hud : ""}</p>
+      ${s.notes && s.notes.length ? `<p class="notes">${s.notes[0]}</p>` : ""}
       <div class="holes"></div>
     `;
     const holes = el.querySelector(".holes");
@@ -138,7 +139,7 @@ function renderHistory(state) {
   const n = (state.history || []).length;
   tab.textContent = n ? `历史 ${n}` : "历史";
   ol.replaceChildren();
-  const rows = [...(state.history || [])].reverse();
+  const rows = state.history || [];
   if (!rows.length) {
     const li = document.createElement("li");
     li.textContent = "打完的手会出现在这里";
