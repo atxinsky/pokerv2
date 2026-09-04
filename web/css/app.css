@@ -7,8 +7,10 @@
   --cream: oklch(0.91 0.028 86);
   --cream-dim: oklch(0.78 0.03 82);
   --ink: oklch(0.2 0.028 55);
-  --heart: oklch(0.47 0.15 25);
-  --club: oklch(0.27 0.035 155);
+  --heart: #c62828;
+  --diamond: #c62828;
+  --club: #1a1a1a;
+  --spade: #1a1a1a;
   --brass: oklch(0.72 0.1 78);
   --room: oklch(0.15 0.022 48);
   --panel: oklch(0.19 0.024 50);
@@ -16,6 +18,7 @@
   --font-display: "Cambria", "Georgia", "Songti SC", serif;
   --font-body: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif;
   --font-card: Consolas, "Cascadia Mono", "Courier New", ui-monospace, monospace;
+  --font-suit: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
   --space: 8px;
 }
 
@@ -27,14 +30,18 @@ body {
   font-family: var(--font-body);
   font-weight: 500;
   line-height: 1.45;
-  min-height: 100%;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .room {
-  min-height: 100%;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
   display: grid;
   grid-template-columns: minmax(160px, 200px) 1fr minmax(180px, 240px);
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   grid-template-areas:
     "mast mast mast"
     "feed feed feed"
@@ -303,8 +310,9 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  padding: 12px 8px 8px;
-  overflow: hidden;
+  padding: 12px 8px 28px;
+  overflow: visible;
+  min-height: 0;
 }
 .lamp {
   position: absolute;
@@ -315,9 +323,11 @@ body {
 }
 .table {
   position: relative;
-  width: min(920px, 96%);
+  width: min(920px, 96%, calc(58vh * 1.7));
   aspect-ratio: 1.7 / 1;
   max-height: 58vh;
+  height: auto;
+  flex-shrink: 0;
 }
 .rail {
   position: absolute;
@@ -375,6 +385,13 @@ body {
   text-align: center;
   pointer-events: auto;
 }
+.seat .ring,
+.seat .dealer {
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
 .seat.folded { opacity: 0.38; }
 .seat.acting .name {
   color: var(--lamp);
@@ -385,13 +402,16 @@ body {
 .ring {
   width: 86px;
   height: 86px;
+  aspect-ratio: 1 / 1;
   margin: 0 auto 4px;
   border-radius: 50%;
   background: oklch(0.18 0.02 50);
   border: 1px solid oklch(0.4 0.04 70 / 0.4);
   display: grid;
   place-items: center;
+  place-content: center;
   position: relative;
+  overflow: visible;
 }
 .seat.is-hero .ring {
   background: oklch(0.24 0.03 70);
@@ -451,6 +471,7 @@ body {
   top: 6px;
   width: 18px;
   height: 18px;
+  aspect-ratio: 1 / 1;
   border-radius: 50%;
   background: var(--cream);
   color: var(--ink);
@@ -458,6 +479,7 @@ body {
   font-weight: 700;
   display: grid;
   place-items: center;
+  line-height: 1;
 }
 .blind {
   position: absolute;
@@ -475,66 +497,123 @@ body {
 }
 
 .pcard {
-  width: 42px;
-  height: 60px;
-  border-radius: 3px;
-  background: oklch(0.96 0.015 92);
-  color: var(--club);
+  width: 44px;
+  height: 62px;
+  aspect-ratio: 5 / 7;
+  border-radius: 4px;
+  background: #f7f2e8;
+  color: var(--spade);
   position: relative;
   box-shadow: 0 2px 4px oklch(0.1 0.02 50 / 0.35);
-  overflow: hidden;
+  overflow: visible;
+  flex-shrink: 0;
 }
 .pcard.red { color: var(--heart); }
+.pcard.black { color: var(--spade); }
 .pcard .corner {
   position: absolute;
-  top: 2px;
-  left: 4px;
+  top: 3px;
+  left: 3px;
   line-height: 1;
-  z-index: 1;
+  z-index: 2;
   display: flex;
-  align-items: baseline;
-  gap: 1px;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 1.15em;
+  pointer-events: none;
 }
 .pcard .corner b {
   font-family: var(--font-card);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0;
 }
 .pcard.rank-A .corner b {
   font-family: "Palatino Linotype", Palatino, "Times New Roman", serif;
   font-style: italic;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
 }
-.pcard .corner i { font-style: normal; font-size: 0.62rem; }
-.pcard > i.pip {
+.pcard .corner .suit,
+.pcard .corner i.suit {
+  font-style: normal;
+  font-family: var(--font-suit);
+  font-size: 0.55rem;
+  line-height: 1;
+  display: block;
+  margin-top: 1px;
+}
+.pcard .corner .suit-svg {
+  width: 0.55rem;
+  height: 0.55rem;
+  display: block;
+  margin-top: 1px;
+}
+.pcard > i.pip,
+.pcard > .pip {
   position: absolute;
   transform: translate(-50%, -50%);
   font-style: normal;
-  font-size: 0.8rem;
+  font-family: var(--font-suit);
+  font-size: 0.78rem;
   line-height: 1;
   pointer-events: none;
+  z-index: 1;
+}
+.pcard > .pip .suit-svg {
+  width: 0.78rem;
+  height: 0.78rem;
+  margin: 0;
 }
 .pcard.rank-A > i.pip,
 .pcard.rank-J > i.pip,
 .pcard.rank-Q > i.pip,
-.pcard.rank-K > i.pip {
-  font-size: 1.35rem;
+.pcard.rank-K > i.pip,
+.pcard.rank-A > .pip,
+.pcard.rank-J > .pip,
+.pcard.rank-Q > .pip,
+.pcard.rank-K > .pip {
+  font-size: 1.25rem;
+}
+.pcard.rank-A > .pip .suit-svg,
+.pcard.rank-J > .pip .suit-svg,
+.pcard.rank-Q > .pip .suit-svg,
+.pcard.rank-K > .pip .suit-svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 .pcard.back {
   background:
     repeating-linear-gradient(45deg, oklch(0.32 0.05 25), oklch(0.32 0.05 25) 4px, oklch(0.28 0.04 25) 4px 8px);
   color: transparent;
   box-shadow: inset 0 0 0 3px oklch(0.7 0.08 80 / 0.5);
+  overflow: hidden;
 }
-.board .pcard { width: 56px; height: 80px; }
-.board .pcard .corner b { font-size: 0.9rem; }
-.board .pcard .corner i { font-size: 0.75rem; }
-.board .pcard > i.pip { font-size: 0.95rem; }
+.board .pcard { width: 56px; height: 78px; }
+.board .pcard .corner b { font-size: 0.85rem; }
+.board .pcard .corner .suit,
+.board .pcard .corner i.suit { font-size: 0.7rem; }
+.board .pcard .corner .suit-svg { width: 0.7rem; height: 0.7rem; }
+.board .pcard > i.pip,
+.board .pcard > .pip { font-size: 0.9rem; }
+.board .pcard > .pip .suit-svg { width: 0.9rem; height: 0.9rem; }
 .board .pcard.rank-A > i.pip,
 .board .pcard.rank-J > i.pip,
 .board .pcard.rank-Q > i.pip,
-.board .pcard.rank-K > i.pip { font-size: 1.7rem; }
+.board .pcard.rank-K > i.pip,
+.board .pcard.rank-A > .pip,
+.board .pcard.rank-J > .pip,
+.board .pcard.rank-Q > .pip,
+.board .pcard.rank-K > .pip { font-size: 1.55rem; }
+.board .pcard.rank-A > .pip .suit-svg,
+.board .pcard.rank-J > .pip .suit-svg,
+.board .pcard.rank-Q > .pip .suit-svg,
+.board .pcard.rank-K > .pip .suit-svg { width: 1.55rem; height: 1.55rem; }
+.holes { overflow: visible; }
+.board { overflow: visible; }
+
 
 .tray {
   grid-area: tray;
@@ -727,7 +806,7 @@ body {
       "tape";
   }
   .tape, .coach { max-height: 220px; border: 0; }
-  .table { max-height: 48vh; }
+  .table { max-height: 48vh; width: min(920px, 96%, calc(48vh * 1.7)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -755,14 +834,10 @@ body {
   50% { box-shadow: 0 0 0 3px oklch(0.78 0.12 78 / 0.95), 0 0 22px oklch(0.72 0.1 78 / 0.45); }
 }
 
-/* Phase 3 polish: clearer cards, action, coach review */
+/* Phase 3 polish: action + coach (card sizing fixed above) */
 .pcard {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-}
-.pcard .corner b {
-  font-size: 1.05em;
-  letter-spacing: -0.02em;
+  border-radius: 6px;
 }
 .seat.acting .ring {
   box-shadow: 0 0 0 2px #ffd56a, 0 0 18px rgba(255, 213, 106, 0.55);
@@ -812,7 +887,7 @@ body {
   color: #c9e4ff;
   line-height: 1.4;
 }
-.board .pcard { width: 58px; height: 82px; }
+/* board card size set in main .pcard rules */
 .seat.is-hero .ring { outline: 1px solid rgba(255, 213, 106, 0.35); }
 #btn-review-more, #btn-review-more-slip { margin-top: 8px; }
 

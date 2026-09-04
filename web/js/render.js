@@ -13,47 +13,62 @@ function visIndex(seat, hero, n) {
   return (seat - hero + n) % n;
 }
 
-const SUIT = { c: "♣", d: "♦", h: "♥", s: "♠" };
+const SUIT_CHAR = { c: "♣", d: "♦", h: "♥", s: "♠" };
+
+/** SVG suit paths: distinct shapes across fonts. */
+const SUIT_SVG = {
+  s: '<svg class="suit-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C12 2 4 11 4 15.5A4.5 4.5 0 0 0 8.5 20c1.4 0 2.6-.6 3.5-1.6V22h.01-.01H12v-3.6c.9 1 2.1 1.6 3.5 1.6A4.5 4.5 0 0 0 20 15.5C20 11 12 2 12 2z"/></svg>',
+  h: '<svg class="suit-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 21S2 13.5 2 8.5A5.5 5.5 0 0 1 12 6.1 5.5 5.5 0 0 1 22 8.5C22 13.5 12 21 12 21z"/></svg>',
+  d: '<svg class="suit-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2L19 12 12 22 5 12 12 2z"/></svg>',
+  c: '<svg class="suit-svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a4.2 4.2 0 0 0-1.7 8.1A4.2 4.2 0 1 0 7.5 17H11v3H9v2h6v-2h-2v-3h3.5a4.2 4.2 0 1 0-2.8-6.9A4.2 4.2 0 0 0 12 2z"/></svg>',
+};
+
+function suitMarkup(suit) {
+  return SUIT_SVG[suit] || SUIT_CHAR[suit] || "?";
+}
 
 function rankShow(r) {
   return r === "T" ? "10" : r;
 }
 
-// 花色坐标：像实体扑克，不在中间再堆一个点数
+// Classic pip layout: corner holds rank+suit; center repeats suit
 const PIP_XY = {
   1: [[50, 54]],
-  2: [[50, 28], [50, 80]],
-  3: [[50, 27], [50, 54], [50, 81]],
-  4: [[30, 30], [70, 30], [30, 78], [70, 78]],
-  5: [[30, 30], [70, 30], [50, 54], [30, 78], [70, 78]],
-  6: [[30, 28], [70, 28], [30, 54], [70, 54], [30, 80], [70, 80]],
-  7: [[30, 28], [70, 28], [50, 39], [30, 52], [70, 52], [30, 80], [70, 80]],
-  8: [[30, 27], [70, 27], [50, 37], [30, 47], [70, 47], [30, 67], [70, 67], [50, 77]],
-  9: [[30, 26], [70, 26], [30, 43], [70, 43], [50, 54], [30, 66], [70, 66], [30, 82], [70, 82]],
-  10: [[30, 25], [70, 25], [50, 34], [30, 43], [70, 43], [30, 63], [70, 63], [50, 72], [30, 81], [70, 81]],
+  2: [[50, 32], [50, 76]],
+  3: [[50, 30], [50, 54], [50, 78]],
+  4: [[32, 32], [68, 32], [32, 76], [68, 76]],
+  5: [[32, 32], [68, 32], [50, 54], [32, 76], [68, 76]],
+  6: [[32, 30], [68, 30], [32, 54], [68, 54], [32, 78], [68, 78]],
+  7: [[32, 30], [68, 30], [50, 42], [32, 54], [68, 54], [32, 78], [68, 78]],
+  8: [[32, 28], [68, 28], [50, 40], [32, 50], [68, 50], [32, 68], [68, 68], [50, 78]],
+  9: [[32, 28], [68, 28], [32, 44], [68, 44], [50, 54], [32, 66], [68, 66], [32, 80], [68, 80]],
+  10: [[32, 26], [68, 26], [50, 36], [32, 44], [68, 44], [32, 64], [68, 64], [50, 72], [32, 82], [68, 82]],
 };
 
 function cardEl(c, hidden) {
   const d = document.createElement("div");
   if (hidden) {
     d.className = "pcard back";
-    d.title = "未亮牌";
+    d.title = "hidden";
     return d;
   }
-  const su = SUIT[c.suit];
+  const su = c.suit;
   const rk = c.rank;
-  d.className = "pcard " + (c.red ? "red" : "black") + " rank-" + rk;
+  const red = su === "h" || su === "d" || !!c.red;
+  d.className = "pcard " + (red ? "red" : "black") + " rank-" + rk;
   let n = 1;
   if (rk === "A") n = 1;
   else if ("JQK".includes(rk)) n = 1;
   else n = rk === "T" ? 10 : Number(rk);
+  const mark = suitMarkup(su);
   const pips = PIP_XY[n].map(
-    ([x, y]) => `<i class="pip" style="left:${x}%;top:${y}%">${su}</i>`
+    ([x, y]) => `<span class="pip" style="left:${x}%;top:${y}%">${mark}</span>`
   ).join("");
-  d.innerHTML = `<span class="corner"><b>${rankShow(rk)}</b><i>${su}</i></span>${pips}`;
-  d.title = rankShow(rk) + su;
+  d.innerHTML = `<span class="corner"><b>${rankShow(rk)}</b><span class="suit">${mark}</span></span>${pips}`;
+  d.title = rankShow(rk) + (SUIT_CHAR[su] || "");
   return d;
 }
+
 
 function renderBoard(state) {
   const board = document.getElementById("board");
