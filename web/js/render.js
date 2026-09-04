@@ -74,6 +74,7 @@ function renderSeats(state) {
     el.className = "seat";
     if (s.folded) el.classList.add("folded");
     if (s.acting) el.classList.add("acting");
+    if (s.thinking || s.busy) el.classList.add("thinking");
     if (s.is_hero) el.classList.add("is-hero");
     el.style.left = x + "%";
     el.style.top = y + "%";
@@ -100,7 +101,12 @@ function renderSeats(state) {
     } else if (s.hole_hidden) {
       holes.append(cardEl(null, true), cardEl(null, true));
     }
-    if (s.say) {
+    if (s.thinking || s.busy) {
+      const th = document.createElement("p");
+      th.className = "thinking-badge";
+      th.textContent = "思考中…";
+      el.append(th);
+    } else if (s.say) {
       // 嘴炮气泡：textContent 渲染，LLM 输出不进 innerHTML
       const p = document.createElement("p");
       p.className = "say";
@@ -185,6 +191,12 @@ function renderHistory(state) {
       sm.textContent = rev.summary;
       li.append(sm);
     }
+    if (h.llm_review || (rev && rev.llm)) {
+      const sm = document.createElement("p");
+      sm.className = "hist-llm";
+      sm.textContent = h.llm_review || rev.llm;
+      li.append(sm);
+    }
     const d = document.createElement("div");
     d.className = "hist-detail";
     const notes = (rev.notes || []).join(" ");
@@ -249,9 +261,21 @@ function renderCoach(state) {
   renderGrid(c && c.grid);
   const pill = document.getElementById("llm-pill");
   if (state.llm) {
-    pill.textContent = state.llm.enabled ? "DeepSeek 接通" : "规则人格";
+    const brain = !!state.llm.brain;
+    pill.textContent = !state.llm.enabled
+      ? "规则人格"
+      : brain
+        ? "对手 LLM"
+        : "DeepSeek 接通";
     pill.classList.toggle("on", !!state.llm.enabled);
     pill.title = state.llm.hint || "";
+  }
+  const think = state.thinking;
+  if (think && think.busy && think.name) {
+    const feed = document.getElementById("llm-feed");
+    if (feed && !feed.textContent.includes("思考")) {
+      feed.textContent = `${think.name} 正在思考…`;
+    }
   }
 }
 
@@ -295,8 +319,53 @@ function renderSlip(state) {
     ul.append(li);
   }
   const rv = document.getElementById("slip-review");
-  const last = (state.history || [])[state.history.length - 1];
-  rv.textContent = last && last.review ? last.review.summary || "" : "";
+  const rows = state.history || [];
+  const last = rows.find((h) => h.hand_idx === (state.hand_review && state.hand_review.hand_idx)) || rows[0] || rows[rows.length - 1];
+  const hr = state.hand_review;
+  rv.textContent = (hr && hr.summary) || (last && last.review ? last.review.summary || "" : "");
+  const llmEl = document.getElementById("slip-llm-review");
+  const more = document.getElementById("btn-review-more-slip");
+  if (llmEl) {
+    if (hr && hr.busy && !hr.llm_review) llmEl.textContent = "教练正在复盘…";
+    else if (hr && hr.llm_review) llmEl.textContent = hr.llm_review;
+    else if (last && last.llm_review) llmEl.textContent = last.llm_review;
+    else llmEl.textContent = "";
+  }
+  if (more) more.hidden = !(hr && (hr.llm_review || hr.summary));
+}
+
+
+function renderCoachPanel(state) {
+  const ul = document.getElementById("coach-thoughts");
+  const rev = document.getElementById("coach-review");
+  const more = document.getElementById("btn-review-more");
+  if (!ul || !rev) return;
+  const panel = state.coach_panel || {};
+  ul.replaceChildren();
+  const thinking = panel.thinking || (state.thinking && state.thinking.busy ? state.thinking : null);
+  if (thinking && thinking.name) {
+    const li = document.createElement("li");
+    li.className = "thinking-line";
+    li.textContent = thinking.name + " 正在思考…";
+    ul.append(li);
+  }
+  for (const row of panel.says || []) {
+    const li = document.createElement("li");
+    li.textContent = row.name + "：「" + row.say + "」";
+    ul.append(li);
+  }
+  if (!ul.childElementCount) {
+    const li = document.createElement("li");
+    li.className = "muted";
+    li.textContent = "暂无对手台词";
+    ul.append(li);
+  }
+  const hr = panel.hand_review || state.hand_review;
+  if (hr && hr.busy && !hr.llm_review) rev.textContent = "教练正在复盘…";
+  else if (hr && hr.llm_review) rev.textContent = hr.llm_review;
+  else if (hr && hr.summary) rev.textContent = hr.summary;
+  else rev.textContent = "手结束后会出现 LLM 复盘";
+  if (more) more.hidden = !(hr && (hr.llm_review || hr.summary));
 }
 
 function renderAll(state) {
@@ -307,5 +376,6 @@ function renderAll(state) {
   renderHud(state);
   renderHistory(state);
   renderCoach(state);
+  renderCoachPanel(state);
   renderSlip(state);
 }

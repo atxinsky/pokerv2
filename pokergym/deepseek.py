@@ -1,4 +1,4 @@
-"""DeepSeek Chat。只塑造人格/适应/复盘文案，不选动作。"""
+"""DeepSeek Chat。人格/适应/复盘/出牌；记录 token 用量供控成本。"""
 
 from __future__ import annotations
 
@@ -94,6 +94,16 @@ def chat_json(
             if text.startswith("json"):
                 text = text[4:]
         LAST_ERROR = ""
+        try:
+            usage = data.get("usage") or {}
+            from pokergym.usage import record
+
+            record(
+                int(usage.get("prompt_tokens") or 0),
+                int(usage.get("completion_tokens") or 0),
+            )
+        except Exception:
+            pass
         return json.loads(text)
     except urllib.error.HTTPError as e:
         LAST_ERROR = f"HTTP {e.code}"

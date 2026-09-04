@@ -4,19 +4,20 @@ from __future__ import annotations
 
 import json
 import threading
+from contextlib import contextmanager
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
 from pokergym.live import LiveSession
 from pokergym.serialize import dump_state
-from pokergym.store import apply_env, export_hands, public_settings, save_settings
+from pokergym.store import apply_env, export_hands, lower_intensity, public_settings, save_settings
 
 apply_env()
 
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 
-_lock = threading.Lock()
+_lock = threading.RLock()
 _session: LiveSession | None = None
 
 
@@ -111,11 +112,22 @@ class Handler(SimpleHTTPRequestHandler):
                 apply_env()
                 self._json(info)
                 return
+            if path == "/api/usage/lower":
+                info = lower_intensity()
+                self._json(info)
+                return
             if path == "/api/new":
                 seed = int(payload.get("seed", 1))
                 mode = payload.get("mode", "train")
                 if mode not in ("train", "realism"):
                     mode = "train"
+                try:
+                    from pokergym.store import set_setting
+
+                    set_setting("product_mode", mode)
+                    apply_env()
+                except Exception:
+                    pass
                 wait = bool(payload.get("wait_llm"))
                 sess = reset_session(seed, mode, wait_llm=wait)
                 self._json(dump_state(sess))
@@ -127,8 +139,27 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             if path == "/api/step":
                 sess = get_session()
-                sess.step_bot()
+
+                @contextmanager
+                def _unlock():
+                    # LLM 调用期间释放锁，让 GET /api/state 能读到 thinking
+                    _lock.release()
+                    try:
+                        yield
+                    finally:
+                        _lock.acquire()
+
+                sess.step_bot(unlock=_unlock)
                 self._json(dump_state(sess))
+                return
+            if path == "/api/review-detail":
+                sess = get_session()
+                try:
+                    text_out = sess.request_review_detail()
+                except Exception as e:
+                    self._json({"error": str(e)}, 500)
+                    return
+                self._json({"ok": bool(text_out), "llm_review": text_out, "state": dump_state(sess)})
                 return
             if path == "/api/action":
                 sess = get_session()

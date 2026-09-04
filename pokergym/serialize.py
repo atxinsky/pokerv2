@@ -180,6 +180,7 @@ def _history(sess: LiveSession) -> list[dict]:
                     "board": _as_cards(rec.get("board") or []),
                     "log": log,
                     "review": rec.get("review") or {},
+                    "llm_review": rec.get("llm_review") or (rec.get("review") or {}).get("llm"),
                 }
             )
         return out
@@ -211,6 +212,7 @@ def _history(sess: LiveSession) -> list[dict]:
                 "board": [card_dto(c) for c in board],
                 "log": log,
                 "review": rec.get("review") or {},
+                "llm_review": rec.get("llm_review") or (rec.get("review") or {}).get("llm"),
             }
         )
     return out
@@ -313,6 +315,8 @@ def dump_state(sess: LiveSession) -> dict:
                 "hole_hidden": (not is_hero) and (p.seat not in revealed) and (not p.folded) and sess.hand_open,
                 "hud": hud,
                 "say": None if is_hero else sess.says.get(p.seat),
+                "thinking": (not is_hero) and sess.thinking_seat == p.seat,
+                "busy": (not is_hero) and sess.thinking_seat == p.seat,
             }
         )
     coach = None
@@ -383,7 +387,44 @@ def dump_state(sess: LiveSession) -> dict:
         "tags": [TAG_ZH.get(t, t) for t in sess.last_tags],
         "winners": winners,
         "llm": _llm_dto(sess),
+        "thinking": {
+            "seat": sess.thinking_seat,
+            "name": sess.thinking_name,
+            "busy": bool(sess.bot_busy or sess.thinking_seat is not None),
+        },
+        "hand_review": _hand_review_dto(sess),
+        "coach_panel": _coach_panel_dto(sess),
+        "usage": _usage_dto(),
+        "mode_info": _mode_info_dto(sess),
     }
+
+
+def _usage_dto() -> dict:
+    try:
+        from pokergym.usage import snapshot
+
+        return snapshot()
+    except Exception:
+        return {"calls": 0, "total_tokens": 0, "est_usd": 0.0, "session_total_tokens": 0, "session_est_usd": 0.0}
+
+
+def _mode_info_dto(sess: LiveSession) -> dict:
+    try:
+        from pokergym.modes import effective_intensity, mode_label, pre_hint_allowed
+        from pokergym.store import public_settings
+
+        ps = public_settings()
+        stored_i = ps.get("llm_brain_intensity", "full")
+        return {
+            "mode": sess.mode,
+            "label": mode_label(sess.mode),
+            "coach_on": bool(ps.get("coach_enabled", True)),
+            "pre_hint_effective": pre_hint_allowed(sess.mode, bool(ps.get("coach_pre_hint"))),
+            "intensity_stored": stored_i,
+            "intensity_effective": effective_intensity(stored_i, sess.mode),
+        }
+    except Exception:
+        return {"mode": sess.mode, "label": sess.mode, "coach_on": True, "pre_hint_effective": False}
 
 
 def _llm_dto(sess: LiveSession) -> dict:
@@ -391,9 +432,75 @@ def _llm_dto(sess: LiveSession) -> dict:
 
     info = status()
     try:
-        from pokergym.store import llm_logs
+        from pokergym.store import llm_logs, public_settings
 
         info["log"] = llm_logs(8)
+        ps = public_settings()
+        info["brain"] = bool(ps.get("llm_brain"))
+        info["brain_intensity"] = ps.get("llm_brain_intensity", "full")
+        info["brain_timeout"] = ps.get("llm_brain_timeout", 12.0)
+        info["coach_enabled"] = bool(ps.get("coach_enabled", True))
+        info["coach_pre_hint"] = bool(ps.get("coach_pre_hint", False))
+        info["product_mode"] = ps.get("product_mode", sess.mode)
+        try:
+            from pokergym.modes import effective_intensity
+
+            info["brain_intensity_effective"] = effective_intensity(
+                info["brain_intensity"], sess.mode
+            )
+        except Exception:
+            info["brain_intensity_effective"] = info["brain_intensity"]
     except Exception:
         info["log"] = []
+        info["brain"] = False
+        info["brain_intensity"] = "full"
+        info["brain_intensity_effective"] = "full"
+        info["brain_timeout"] = 12.0
+        info["coach_enabled"] = True
+        info["coach_pre_hint"] = False
+        info["product_mode"] = sess.mode
     return info
+
+
+def _hand_review_dto(sess: LiveSession) -> dict | None:
+    """Latest post-hand review for slip / coach panel."""
+    if not sess.archive:
+        base = None
+    else:
+        rec = sess.archive[-1]
+        base = {
+            "hand_idx": rec.get("hand_idx"),
+            "summary": (rec.get("review") or {}).get("summary"),
+            "notes": (rec.get("review") or {}).get("notes") or [],
+            "llm_review": rec.get("llm_review") or (rec.get("review") or {}).get("llm") or sess.llm_review,
+            "busy": bool(sess.llm_review_busy and sess.llm_review_hand_idx == rec.get("hand_idx")),
+            "delta_bb": rec.get("delta_bb"),
+            "tags": [TAG_ZH.get(t, t) for t in rec.get("tags") or []],
+        }
+    if sess.waiting() == "over" and base:
+        if sess.llm_review and sess.llm_review_hand_idx == base.get("hand_idx"):
+            base["llm_review"] = sess.llm_review
+        base["busy"] = bool(sess.llm_review_busy)
+        return base
+    if base and base.get("llm_review"):
+        return base
+    return base if sess.waiting() == "over" else None
+
+
+def _coach_panel_dto(sess: LiveSession) -> dict:
+    """Right-side panel: bot thoughts/say + post-hand review."""
+    says = []
+    for seat, text in sorted(sess.says.items()):
+        if seat == sess.hero_seat or not text:
+            continue
+        says.append({"seat": seat, "name": sess._name(seat), "say": text})
+    thinking = None
+    if sess.thinking_seat is not None:
+        thinking = {"seat": sess.thinking_seat, "name": sess.thinking_name or sess._name(sess.thinking_seat)}
+    return {
+        "says": says[-6:],
+        "thinking": thinking,
+        "hand_review": _hand_review_dto(sess),
+        "pre_hint": (sess.llm_comment if getattr(sess, "llm_comment", None) else None),
+    }
+

@@ -105,6 +105,9 @@ function paintLegal() {
 function syncTray() {
   const justHero = state && state.waiting === "hero" && lastWaiting !== "hero";
   lastWaiting = state ? state.waiting : null;
+  if (state && state.mode && $("mode") && $("mode").value !== state.mode) {
+    $("mode").value = state.mode;
+  }
   if (state.waiting === "hero") {
     const b = state.bet;
     setHint(
@@ -113,7 +116,9 @@ function syncTray() {
         : "轮到你。F 弃 · X 过 · C 跟 · 空格 过/跟"
     );
   } else if (state.waiting === "bot") {
-    setHint("对面在想。");
+    const th = state.thinking;
+    if (th && th.busy && th.name) setHint(th.name + " 正在思考…");
+    else setHint("对面在想。");
   } else if (state.waiting === "over") {
     setHint("这手结束。回车或点「下一手」。");
   } else {
@@ -123,12 +128,41 @@ function syncTray() {
   paintBetbox(justHero);
 }
 
+function paintUsage(s) {
+  const pill = $("usage-pill");
+  const box = $("usage-text");
+  const u = (s && s.usage) || {};
+  const sessTok = u.session_total_tokens || 0;
+  const totTok = u.total_tokens || 0;
+  const sessUsd = typeof u.session_est_usd === "number" ? u.session_est_usd : 0;
+  const totUsd = typeof u.est_usd === "number" ? u.est_usd : 0;
+  const mi = (s && s.mode_info) || {};
+  const inten = mi.intensity_effective || ((s && s.llm && s.llm.brain_intensity_effective) || (s && s.llm && s.llm.brain_intensity) || "—");
+  if (pill) {
+    pill.textContent =
+      sessTok > 0
+        ? `本席 ${sessTok} tok · ≈$${sessUsd.toFixed(4)}`
+        : totTok > 0
+          ? `累计 ${totTok} tok · ≈$${totUsd.toFixed(4)}`
+          : "用量 —";
+  }
+  if (box) {
+    box.textContent =
+      `本席调用 ${u.session_calls || 0} 次 / ${sessTok} tokens（≈$${sessUsd.toFixed(4)}）；` +
+      `累计 ${u.calls || 0} 次 / ${totTok} tokens（≈$${totUsd.toFixed(4)}）。` +
+      `有效出牌强度：${inten}。` +
+      (u.hint ? " " + u.hint : "");
+  }
+}
+
 async function apply(next) {
   state = next;
+  paintUsage(state);
   renderAll(state);
   syncTray();
   scheduleBot();
   scheduleLlmPoll();
+  scheduleReviewPoll();
 }
 
 let llmPoll = 0;
@@ -161,12 +195,27 @@ function scheduleBot() {
       scheduleBot();
       return;
     }
+    let thinkPoll = 0;
     try {
       busy = true;
+      const who = state.to_act;
+      const seat = (state.seats || []).find((s) => s.seat === who);
+      if (seat) setHint(seat.name + " 正在思考…");
+      thinkPoll = setInterval(async () => {
+        try {
+          const s = await api.state();
+          state = s;
+          renderAll(state);
+          if (s.thinking && s.thinking.busy && s.thinking.name) {
+            setHint(s.thinking.name + " 正在思考…");
+          }
+        } catch (e) {}
+      }, 450);
       await apply(await api.step());
     } catch (e) {
       setHint(String(e.message || e));
     } finally {
+      if (thinkPoll) clearInterval(thinkPoll);
       busy = false;
     }
   }, 420);
@@ -301,6 +350,11 @@ async function openSettings() {
     const s = await api.settings();
     $("set-llm").checked = !!s.llm_enabled;
     $("set-brain").checked = !!s.llm_brain;
+    if ($("set-intensity")) $("set-intensity").value = s.llm_brain_intensity || "full";
+    if ($("set-timeout")) $("set-timeout").value = String(s.llm_brain_timeout || 12);
+    if ($("set-coach")) $("set-coach").checked = s.coach_enabled !== false;
+    if ($("set-pre-hint")) $("set-pre-hint").checked = !!s.coach_pre_hint;
+    paintUsage({ usage: s.usage, mode_info: { intensity_effective: s.llm_brain_intensity }, llm: s });
     $("set-key").value = "";
     $("set-key").placeholder = s.deepseek_key_masked || "sk-...";
     $("set-base").value = s.deepseek_base || "https://api.deepseek.com";
@@ -322,6 +376,25 @@ $("btn-settings").addEventListener("click", openSettings);
 $("btn-close-set").addEventListener("click", () => {
   $("settings").hidden = true;
 });
+if ($("btn-lower-intensity")) {
+  $("btn-lower-intensity").addEventListener("click", async () => {
+    try {
+      const info = await api.lowerIntensity();
+      $("set-hint").textContent = info.intensity_note || "已降档";
+      if ($("set-intensity") && info.llm_brain_intensity) {
+        $("set-intensity").value = info.llm_brain_intensity;
+      }
+      paintUsage({ usage: info.usage, mode_info: { intensity_effective: info.llm_brain_intensity }, llm: info });
+      if (state) {
+        state.usage = info.usage;
+        if (state.llm) state.llm.brain_intensity = info.llm_brain_intensity;
+      }
+    } catch (e) {
+      $("set-hint").textContent = String(e.message || e);
+    }
+  });
+}
+
 $("btn-save-set").addEventListener("click", async () => {
   try {
     const save = api.saveSettings
@@ -331,6 +404,10 @@ $("btn-save-set").addEventListener("click", async () => {
     await save({
       llm_enabled: $("set-llm").checked,
       llm_brain: $("set-brain").checked,
+      llm_brain_intensity: $("set-intensity") ? $("set-intensity").value : "full",
+      llm_brain_timeout: $("set-timeout") ? Number($("set-timeout").value || 12) : 12,
+      coach_enabled: $("set-coach") ? $("set-coach").checked : true,
+      coach_pre_hint: $("set-pre-hint") ? $("set-pre-hint").checked : false,
       deepseek_key: $("set-key").value,
       deepseek_base: $("set-base").value,
       deepseek_model: $("set-model").value,
@@ -349,6 +426,48 @@ $("btn-save-set").addEventListener("click", async () => {
     $("set-hint").textContent = String(e.message || e);
   }
 });
+
+
+let reviewPoll = 0;
+function scheduleReviewPoll() {
+  if (reviewPoll) clearTimeout(reviewPoll);
+  const hr = state && state.hand_review;
+  const want = state && state.waiting === "over" && hr && hr.busy && !hr.llm_review;
+  if (!want) return;
+  reviewPoll = setTimeout(async () => {
+    if (busy) return;
+    try {
+      const s = await api.state();
+      state = s;
+      renderAll(state);
+      syncTray();
+      scheduleReviewPoll();
+    } catch (e) {}
+  }, 900);
+}
+
+async function reviewMore() {
+  if (busy) return;
+  busy = true;
+  try {
+    const out = await api.reviewDetail();
+    if (out && out.state) state = out.state;
+    else if (out && out.llm_review && state) {
+      state.hand_review = state.hand_review || {};
+      state.hand_review.llm_review = out.llm_review;
+      state.hand_review.busy = false;
+    }
+    renderAll(state);
+    syncTray();
+  } catch (e) {
+    setHint(String(e.message || e));
+  } finally {
+    busy = false;
+  }
+}
+
+if ($("btn-review-more")) $("btn-review-more").addEventListener("click", reviewMore);
+if ($("btn-review-more-slip")) $("btn-review-more-slip").addEventListener("click", reviewMore);
 
 (async function boot() {
   try {

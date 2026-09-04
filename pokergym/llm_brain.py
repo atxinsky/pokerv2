@@ -5,6 +5,7 @@
 - LLM 输出动作 + 嘴炮（say），动作先 snap 到合法动作再落地。
 - 任何失败（超时/坏 JSON/非法动作）都回退引擎 A 层，牌局永不阻塞。
 - 只剩一种合法动作时不调 LLM，省钱省时间。
+- 强度设定决定多少座位走 LLM（其余走频率 bot）。
 """
 
 from __future__ import annotations
@@ -41,12 +42,75 @@ STREET_ZH = {"pre": "翻前", "flop": "翻牌", "turn": "转牌", "river": "河�
 
 KIND_ZH = {"fold": "弃牌", "check": "过牌", "call": "跟注", "bet": "下注", "raise": "加注"}
 
+_INTENSITY_FRAC = {
+    "full": 1.0,
+    "high": 0.75,
+    "med": 0.5,
+    "low": 0.25,
+    "sparse": 0.25,
+}
+
 
 def brain_enabled() -> bool:
     """全 LLM 出牌开关：设置里开了 + DeepSeek 可用才生效。"""
+    try:
+        from pokergym.store import apply_env
+
+        apply_env()
+    except Exception:
+        pass
     if os.environ.get("POKERGYM_LLM_BRAIN", "0") != "1":
         return False
     return available()
+
+
+def brain_timeout() -> float:
+    try:
+        from pokergym.store import apply_env
+
+        apply_env()
+    except Exception:
+        pass
+    try:
+        t = float(os.environ.get("POKERGYM_LLM_BRAIN_TIMEOUT", "12"))
+    except (TypeError, ValueError):
+        t = 12.0
+    return max(3.0, min(30.0, t))
+
+
+def brain_intensity(mode: str | None = None) -> str:
+    try:
+        from pokergym.store import apply_env
+
+        apply_env()
+    except Exception:
+        pass
+    v = (os.environ.get("POKERGYM_LLM_BRAIN_INTENSITY") or "full").strip().lower()
+    if v not in _INTENSITY_FRAC:
+        v = "full"
+    if mode:
+        try:
+            from pokergym.modes import effective_intensity
+
+            return effective_intensity(v, mode)
+        except Exception:
+            return v
+    return v
+
+
+def seat_uses_llm(seat: int, hero_seat: int, n_seats: int, mode: str | None = None) -> bool:
+    """按强度决定该座位是否走 LLM。确定性：按座位号排序后取前 k 个对手。"""
+    if not brain_enabled():
+        return False
+    frac = _INTENSITY_FRAC.get(brain_intensity(mode), 1.0)
+    bots = [s for s in range(n_seats) if s != hero_seat]
+    if not bots:
+        return False
+    k = max(1, int(round(len(bots) * frac))) if frac > 0 else 0
+    if frac >= 0.999:
+        k = len(bots)
+    chosen = sorted(bots)[:k]
+    return seat in chosen
 
 
 def _cards_text(cards) -> str:
@@ -93,7 +157,8 @@ def decide_llm(
     bot: BotProfile,
     names: dict[int, str],
     lost_big: bool = False,
-    timeout: float = 12.0,
+    timeout: float | None = None,
+    mode: str | None = None,
 ) -> tuple[Action, str] | None:
     """问 DeepSeek 这手怎么打。返回 (动作, 嘴炮)；不需要决策或失败返回 None。"""
     seat = bot.seat
@@ -118,9 +183,15 @@ def decide_llm(
         }
         leaks = "你的老毛病：" + "；".join(leak_txt.get(l.trigger, l.trigger) for l in bot.leaks) + "。"
 
+    try:
+        from pokergym.modes import realism_tougher_prompt_extra
+
+        tough = realism_tougher_prompt_extra(mode or "")
+    except Exception:
+        tough = ""
     sys = (
         f"你是{bot.name}，线下俱乐部 8 人桌现金局（盲注 0.5/1，100bb 买入）里的真人玩家。你不是 AI，也不提概率公式。"
-        f"{ARCHETYPE_ZH.get(bot.archetype, '')}。{style}{mood}{leaks}"
+        f"{ARCHETYPE_ZH.get(bot.archetype, '')}。{style}{mood}{leaks}{tough}"
         "轮到你行动时，像真人一样凭感觉和人设做决定：可以咋呼（诈唬）、可以演、可以上头了乱来，但要符合你的人设，别每手都打得一样。"
         "只输出 JSON：{\"action\":\"fold|check|call|bet|raise\",\"to_bb\":数字或null,\"say\":\"桌上说的一句话\"}。"
         "action 必须选合法动作之一；bet/raise 时 to_bb 是本街累计下注到多少 bb，必须在给定范围内；"
@@ -143,7 +214,8 @@ def decide_llm(
     }
     import json
 
-    data = chat_json(sys, json.dumps(user, ensure_ascii=False), timeout=timeout, temperature=0.85, max_tokens=220)
+    to = brain_timeout() if timeout is None else timeout
+    data = chat_json(sys, json.dumps(user, ensure_ascii=False), timeout=to, temperature=0.85, max_tokens=220)
     if not data:
         return None
     kind = str(data.get("action") or "").strip().lower()

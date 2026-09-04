@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PokerGym · 夜场</title>
-  <link rel="stylesheet" href="/css/app.css?v=7" />
+  <link rel="stylesheet" href="/css/app.css?v=10" />
 </head>
 <body>
   <div class="room">
@@ -18,10 +18,11 @@
       <label class="mode">
         模式
         <select id="mode">
-          <option value="train">训练 · 对手读得快</option>
-          <option value="realism">拟真 · 对手读得慢</option>
+          <option value="train">训练 · 教练开</option>
+          <option value="realism">拟真 · 少提示更猛</option>
         </select>
       </label>
+      <p class="usage-pill" id="usage-pill" title="本会话 LLM 用量粗估">用量 —</p>
       <button type="button" class="ghost" id="btn-new">换一桌</button>
       <button type="button" class="ghost" id="btn-settings">设置</button>
     </header>
@@ -66,7 +67,16 @@
       <h2 id="chart-title">范围图</h2>
       <div class="gto" id="gto-grid" aria-label="GTO 范围"></div>
       <p class="gto-cap">上三角同花 · 对角对子 · 下三角杂色。亮格=该打，金框=你的手牌。</p>
-    </aside>
+      <div class="coach-block" id="coach-thoughts-wrap">
+        <h2>对手台词 / 思考</h2>
+        <ul class="thoughts" id="coach-thoughts"></ul>
+      </div>
+      <div class="coach-block" id="coach-review-wrap">
+        <h2>手后复盘</h2>
+        <p class="review-body" id="coach-review"></p>
+        <button type="button" class="ghost" id="btn-review-more" hidden>再讲细一点</button>
+      </div>
+</aside>
 
     <footer class="tray" id="tray">
       <p class="hint" id="hint">发牌后轮到你再动</p>
@@ -87,13 +97,35 @@
 
   <section class="sheet" id="settings" hidden>
     <h2>设置</h2>
-    <p class="gto-cap">DeepSeek Key 只存在本机 SQLite，请求只打 api.deepseek.com。牌谱也在本地，不经过 Google。</p>
+    <p class="gto-cap">DeepSeek Key 只存在本机 SQLite，请求只打 api.deepseek.com。牌谱也在本地，不经过 Google。产品定位：LLM 对手 + LLM 教练；右侧 GTO 范围图仅作参考，不是 solver。</p>
     <label>启用大模型
       <input type="checkbox" id="set-llm" checked />
     </label>
-    <label>全 LLM 出牌（每个 bot 每次行动都问 DeepSeek，慢且烧钱，但最像真人）
-      <input type="checkbox" id="set-brain" />
+    <label>对手 LLM 出牌（有 Key 时默认开：每个 bot 行动问 DeepSeek，失败回退频率 bot）
+      <input type="checkbox" id="set-brain" checked />
     </label>
+    <label>出牌强度
+      <select id="set-intensity">
+        <option value="full">全桌（全部对手）</option>
+        <option value="high">高（约 3/4）</option>
+        <option value="med">中（约一半）</option>
+        <option value="low">低（约 1/4）</option>
+      </select>
+    </label>
+    <label>单次思考超时（秒）
+      <input type="number" id="set-timeout" min="3" max="30" step="1" value="12" />
+    </label>
+    <label>手后 LLM 教练复盘
+      <input type="checkbox" id="set-coach" checked />
+    </label>
+    <label>决策前短提示（默认关，不替你打；拟真模式强制关）
+      <input type="checkbox" id="set-pre-hint" />
+    </label>
+    <div class="usage-box" id="usage-box">
+      <h3>用量</h3>
+      <p class="gto-cap" id="usage-text">本会话尚未调用 LLM。</p>
+      <button type="button" class="ghost" id="btn-lower-intensity">一键降档（减少 LLM 对手）</button>
+    </div>
     <label>DeepSeek API Key
       <input type="password" id="set-key" autocomplete="off" placeholder="sk-..." />
     </label>
@@ -115,11 +147,13 @@
     <h2>这手完了</h2>
     <p id="slip-review"></p>
     <ul id="winners"></ul>
+    <p class="review-body" id="slip-llm-review"></p>
+    <button type="button" class="ghost" id="btn-review-more-slip" hidden>再讲细一点</button>
     <button type="button" class="primary" id="btn-next">下一手</button>
   </section>
 
-  <script src="/js/api.js?v=7"></script>
-  <script src="/js/render.js?v=7"></script>
-  <script src="/js/app.js?v=7"></script>
+  <script src="/js/api.js?v=10"></script>
+  <script src="/js/render.js?v=10"></script>
+  <script src="/js/app.js?v=10"></script>
 </body>
 </html>

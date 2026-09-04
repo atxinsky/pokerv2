@@ -22,4 +22,6 @@ const api = {
   act: (kind, to_bb) => api.post("/api/action", { kind, to_bb }),
   settings: () => api.get("/api/settings"),
   saveSettings: (body) => api.post("/api/settings", body),
+  reviewDetail: () => api.post("/api/review-detail", {}),
+  lowerIntensity: () => api.post("/api/usage/lower", {}),
 };

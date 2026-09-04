@@ -110,6 +110,13 @@ def cmd_ui(args):
     run_ui(host=args.host, port=args.port, browser=args.browser)
 
 
+def cmd_serve(args):
+    """常驻模式：只起 HTTP 服务，不弹窗口（给计划任务/后台用）。"""
+    from pokergym.server import serve_forever
+
+    serve_forever(host=args.host, port=args.port)
+
+
 def cmd_drill(args):
     out = run_fold_to_3bet_drill(seed=args.seed, hands=args.hands)
     print(
@@ -145,6 +152,10 @@ def main(argv=None):
     su.add_argument("--port", type=int, default=8765)
     su.add_argument("--browser", action="store_true", help="只用系统浏览器")
     su.set_defaults(func=cmd_ui)
+    sv = sub.add_parser("serve", help="只起 HTTP 服务，不弹窗（常驻用）")
+    sv.add_argument("--host", default="127.0.0.1")
+    sv.add_argument("--port", type=int, default=8765)
+    sv.set_defaults(func=cmd_serve)
     args = p.parse_args(argv)
     args.func(args)
 

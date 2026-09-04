@@ -14,7 +14,10 @@ def brain_on(monkeypatch):
     """强制打开全 LLM 出牌，并接管 chat_json。"""
     monkeypatch.setenv("POKERGYM_LLM", "1")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN", "1")
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN_INTENSITY", "full")
     monkeypatch.setattr(llm_brain, "brain_enabled", lambda: True)
+    monkeypatch.setattr(llm_brain, "seat_uses_llm", lambda seat, hero, n, mode=None: True)
     calls = []
 
     def fake_chat(system, user, **kw):
@@ -48,6 +51,34 @@ def test_llm_decides_and_says(brain_on):
     assert s.last_event["kind"] in ("fold", "check", "call", "bet", "raise")
     assert s.last_event.get("say") == "这牌没法打"
     assert s.says.get(seat) == "这牌没法打"
+    assert s.thinking_seat is None
+    assert s.bot_busy is False
+
+
+def test_thinking_flag_during_llm(brain_on, monkeypatch):
+    """LLM 调用期间 thinking_seat / bot_busy 置位，结束后清空。"""
+    seen = {}
+    s = LiveSession(seed=11)
+    s.new_hand()
+    _step_to_bot(s)
+    assert s.waiting() == "bot"
+    seat = s.st.to_act
+
+    real = llm_brain.decide_llm
+
+    def wrap(st, bot, names, lost_big=False, timeout=None, mode=None):
+        seen["during"] = (s.thinking_seat, s.bot_busy, s.thinking_name)
+        return real(st, bot, names, lost_big=lost_big, timeout=timeout, mode=mode)
+
+    monkeypatch.setattr(llm_brain, "decide_llm", wrap)
+
+    s.step_bot()
+    assert seen.get("during") is not None
+    assert seen["during"][0] == seat
+    assert seen["during"][1] is True
+    assert seen["during"][2]  # name set
+    assert s.thinking_seat is None
+    assert s.bot_busy is False
 
 
 def test_prompt_contains_own_hole_not_hero(brain_on):
@@ -74,7 +105,9 @@ def test_fallback_when_llm_dead(monkeypatch):
     """LLM 返回垃圾/超时：引擎兜底，牌局照常推进。"""
     monkeypatch.setenv("POKERGYM_LLM", "1")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN", "1")
     monkeypatch.setattr(llm_brain, "brain_enabled", lambda: True)
+    monkeypatch.setattr(llm_brain, "seat_uses_llm", lambda seat, hero, n, mode=None: True)
     monkeypatch.setattr(llm_brain, "chat_json", lambda *a, **k: None)
     s = LiveSession(seed=9)
     s.new_hand()
@@ -84,11 +117,12 @@ def test_fallback_when_llm_dead(monkeypatch):
     s.step_bot()
     assert len(s.st.action_log) == before + 1
     assert not (s.last_event or {}).get("say")
+    assert s.thinking_seat is None
 
 
 def test_brain_off_by_default(monkeypatch):
-    """不开关时走纯引擎，不调 LLM。"""
-    monkeypatch.delenv("POKERGYM_LLM_BRAIN", raising=False)
+    """显式关掉 brain 时走纯引擎，不调 LLM。"""
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN", "0")
     monkeypatch.setattr(llm_brain, "chat_json", lambda *a, **k: pytest.fail("不该调 LLM"))
     s = LiveSession(seed=13)
     s.new_hand()
@@ -96,3 +130,34 @@ def test_brain_off_by_default(monkeypatch):
     assert s.waiting() == "bot"
     s.step_bot()
     assert s.last_event is not None
+
+
+def test_intensity_limits_seats(monkeypatch):
+    """低强度时只有部分座位走 LLM。"""
+    monkeypatch.setenv("POKERGYM_LLM", "1")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test-key")
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN", "1")
+    monkeypatch.setenv("POKERGYM_LLM_BRAIN_INTENSITY", "low")
+    # 重新读 env
+    monkeypatch.setattr(llm_brain, "brain_enabled", lambda: True)
+    monkeypatch.setattr(llm_brain, "brain_intensity", lambda mode=None: "low")
+
+    # 8 人桌 hero=0 → 7 bots，low=0.25 → k=max(1, round(1.75))=2 → seats 1,2
+    assert llm_brain.seat_uses_llm(1, 0, 8) is True
+    assert llm_brain.seat_uses_llm(2, 0, 8) is True
+    assert llm_brain.seat_uses_llm(3, 0, 8) is False
+    assert llm_brain.seat_uses_llm(7, 0, 8) is False
+
+
+def test_state_exposes_thinking_shape(brain_on, monkeypatch):
+    from pokergym.serialize import dump_state
+
+    s = LiveSession(seed=3)
+    s.new_hand()
+    data = dump_state(s)
+    assert "thinking" in data
+    assert data["thinking"]["busy"] is False
+    assert data["thinking"]["seat"] is None
+    for seat in data["seats"]:
+        assert "thinking" in seat
+        assert "busy" in seat

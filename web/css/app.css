@@ -249,6 +249,30 @@ body {
   font-weight: 800;
 }
 .gto-cap { font-size: 0.68rem; color: var(--cream-dim); margin: 6px 0 0; }
+.usage-pill {
+  margin: 0;
+  padding: 4px 10px;
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--cream-dim);
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.usage-box {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
+}
+.usage-box h3 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--cream);
+}
 .llm-pill {
   margin: 0;
   font-size: 0.72rem;
@@ -709,3 +733,86 @@ body {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+
+/* Phase 1: opponent thinking indicator */
+.seat.thinking .name {
+  color: var(--brass);
+}
+.seat.thinking .ring {
+  box-shadow: 0 0 0 2px oklch(0.72 0.1 78 / 0.85), 0 0 18px oklch(0.72 0.1 78 / 0.35);
+  animation: think-pulse 1.2s ease-in-out infinite;
+}
+.thinking-badge {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--brass);
+  text-align: center;
+}
+@keyframes think-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px oklch(0.72 0.1 78 / 0.55); }
+  50% { box-shadow: 0 0 0 3px oklch(0.78 0.12 78 / 0.95), 0 0 22px oklch(0.72 0.1 78 / 0.45); }
+}
+
+/* Phase 3 polish: clearer cards, action, coach review */
+.pcard {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+.pcard .corner b {
+  font-size: 1.05em;
+  letter-spacing: -0.02em;
+}
+.seat.acting .ring {
+  box-shadow: 0 0 0 2px #ffd56a, 0 0 18px rgba(255, 213, 106, 0.55);
+}
+.seat.thinking .ring {
+  box-shadow: 0 0 0 2px #7ec8ff, 0 0 18px rgba(126, 200, 255, 0.5);
+}
+.seat .thinking-badge {
+  background: rgba(30, 80, 140, 0.85);
+  color: #e8f4ff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+.coach-block {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.coach-block h2 {
+  font-size: 13px;
+  margin: 0 0 8px;
+  opacity: 0.9;
+}
+.thoughts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.thoughts li { margin: 0 0 6px; opacity: 0.92; }
+.thoughts .thinking-line { color: #9fd0ff; }
+.thoughts .muted { opacity: 0.55; }
+.review-body {
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  min-height: 2.5em;
+}
+.hist-llm {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #c9e4ff;
+  line-height: 1.4;
+}
+.board .pcard { width: 58px; height: 82px; }
+.seat.is-hero .ring { outline: 1px solid rgba(255, 213, 106, 0.35); }
+#btn-review-more, #btn-review-more-slip { margin-top: 8px; }
+
