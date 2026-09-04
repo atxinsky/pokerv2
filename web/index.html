@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PokerGym · 夜场</title>
-  <link rel="stylesheet" href="/css/app.css?v=10" />
+  <link rel="stylesheet" href="/css/app.css?v=11" />
 </head>
 <body>
   <div class="room">
@@ -15,6 +15,7 @@
       </div>
       <p class="mast-meta" id="mast-meta">开局中</p>
       <p class="llm-pill" id="llm-pill">LLM</p>
+      <p class="llm-pill" id="drill-pill" hidden></p>
       <label class="mode">
         模式
         <select id="mode">
@@ -23,7 +24,8 @@
         </select>
       </label>
       <p class="usage-pill" id="usage-pill" title="本会话 LLM 用量粗估">用量 —</p>
-      <button type="button" class="ghost" id="btn-new">换一桌</button>
+      <button type="button" class="ghost" id="btn-new">新一桌</button>
+      <button type="button" class="ghost" id="btn-drill" title="按复盘弱项开 drill">弱项训练</button>
       <button type="button" class="ghost" id="btn-settings">设置</button>
     </header>
     <p class="llm-feed" id="llm-feed"></p>
@@ -152,8 +154,8 @@
     <button type="button" class="primary" id="btn-next">下一手</button>
   </section>
 
-  <script src="/js/api.js?v=10"></script>
-  <script src="/js/render.js?v=10"></script>
-  <script src="/js/app.js?v=10"></script>
+  <script src="/js/api.js?v=11"></script>
+  <script src="/js/render.js?v=11"></script>
+  <script src="/js/app.js?v=11"></script>
 </body>
 </html>

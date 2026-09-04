@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 
 from pokergym.const import CHIP_PER_BB, MODE_REALISM, MODE_TRAIN
-from pokergym.drills import run_fold_to_3bet_drill
+from pokergym.drills import (
+    list_themes,
+    run_fold_to_3bet_drill,
+    select_drill_focus,
+    weakness_report,
+)
 from pokergym.legal import legal_actions, snap_action
 from pokergym.personality import desc
 from pokergym.stats import collect, gap_std, population_wtsd, population_wwsf
@@ -118,15 +123,49 @@ def cmd_serve(args):
 
 
 def cmd_drill(args):
+    if getattr(args, "list_themes", False):
+        for th in list_themes():
+            print(f"{th['id']:<22} {th['label']}  — {th['focus']}")
+        return
+    if getattr(args, "weakness", False) or getattr(args, "theme", None):
+        theme = getattr(args, "theme", None)
+        use_llm = bool(getattr(args, "use_llm", False))
+        report = weakness_report(theme, use_llm=use_llm)
+        focus = report["focus"]
+        print(f"弱项 drill 主题: {focus['id']}  ({focus['label']})")
+        print(f"来源: {focus.get('source')}  — {focus.get('reason', '')}")
+        print(f"焦点: {focus['focus']}")
+        ranked = report.get("ranked") or []
+        hits = [r for r in ranked if r.get("score", 0) > 0][:5]
+        if hits:
+            print("复盘弱项排行:")
+            for r in hits:
+                print(f"  {r['score']:>3}  {r['id']:<22} {r['label']}")
+        else:
+            print("暂无复盘标签信号，已回退静态主题包。")
+        if getattr(args, "start_ui", False):
+            from pokergym.desktop import run_ui
+            from pokergym.server import reset_session
+
+            reset_session(
+                getattr(args, "seed", None),
+                mode="train",
+                theme=focus["id"],
+                auto_weakness=True,
+                use_llm_pick=False,
+            )
+            print("已加载弱项牌桌，打开 UI …")
+            run_ui(host=args.host, port=args.port, browser=getattr(args, "browser", False))
+        return
     out = run_fold_to_3bet_drill(seed=args.seed, hands=args.hands)
     print(
         f"3bet率 前期 {out['early']:.1%}  后期 {out['late']:.1%}  "
-        f"提升 {out['lift']:.2f}x  参数倍率 {out['param_mult']:.2f}"
+        f"提升 {out['lift']:.2f}x  参数倍数 {out['param_mult']:.2f}"
     )
     if out["param_mult"] > 1.05 or out["late"] > out["early"] * 1.08:
-        print("B 层适应生效")
+        print("B 层响应有效")
     else:
-        print("B 层适应偏弱（样本不足或被原型夹逼）")
+        print("B 层响应偏弱（可能样本或原型偏紧）")
 
 
 def main(argv=None):
@@ -143,9 +182,17 @@ def main(argv=None):
     ss.add_argument("--seats", type=int, default=8)
     ss.add_argument("--mode", choices=[MODE_TRAIN, MODE_REALISM], default=MODE_TRAIN)
     ss.set_defaults(func=cmd_sim)
-    sd = sub.add_parser("drill", help="英雄永远弃 3bet，看 bot 是否加大 3bet")
+    sd = sub.add_parser("drill", help="泄漏/弱项 drill：默认测 bot 对弃 3bet 的适应；加 --weakness 做弱项训练")
     sd.add_argument("--seed", type=int, default=9)
     sd.add_argument("--hands", type=int, default=200)
+    sd.add_argument("--weakness", action="store_true", help="按复盘弱项/主题包选 drill 焦点")
+    sd.add_argument("--theme", default=None, help="指定主题 id（见 --list-themes）")
+    sd.add_argument("--list-themes", action="store_true", help="列出静态主题包")
+    sd.add_argument("--use-llm", action="store_true", help="有 Key 时让 LLM 协助选主题")
+    sd.add_argument("--start-ui", action="store_true", help="选好主题后直接开 UI 牌桌")
+    sd.add_argument("--host", default="127.0.0.1")
+    sd.add_argument("--port", type=int, default=8765)
+    sd.add_argument("--browser", action="store_true")
     sd.set_defaults(func=cmd_drill)
     su = sub.add_parser("ui", help="桌面夜场牌桌")
     su.add_argument("--host", default="127.0.0.1")

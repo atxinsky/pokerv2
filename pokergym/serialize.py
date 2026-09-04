@@ -396,6 +396,7 @@ def dump_state(sess: LiveSession) -> dict:
         "coach_panel": _coach_panel_dto(sess),
         "usage": _usage_dto(),
         "mode_info": _mode_info_dto(sess),
+        "drill": _drill_dto(sess),
     }
 
 
@@ -502,5 +503,20 @@ def _coach_panel_dto(sess: LiveSession) -> dict:
         "thinking": thinking,
         "hand_review": _hand_review_dto(sess),
         "pre_hint": (sess.llm_comment if getattr(sess, "llm_comment", None) else None),
+    }
+
+def _drill_dto(sess: LiveSession) -> dict | None:
+    """Active weakness-drill focus for mast / coach panel."""
+    d = getattr(sess, "drill", None)
+    if not d or not d.get("active"):
+        return None
+    return {
+        "id": d.get("id"),
+        "label": d.get("label"),
+        "focus": d.get("focus"),
+        "source": d.get("source"),
+        "reason": d.get("reason"),
+        "tags": list(d.get("tags") or []),
+        "active": True,
     }
 

@@ -29,9 +29,31 @@ def get_session() -> LiveSession:
     return _session
 
 
-def reset_session(seed: int = 1, mode: str = "train", wait_llm: bool = False) -> LiveSession:
+def reset_session(
+    seed: int | None = 1,
+    mode: str = "train",
+    wait_llm: bool = False,
+    *,
+    theme: str | None = None,
+    auto_weakness: bool = False,
+    use_llm_pick: bool = False,
+) -> LiveSession:
+    """Start a fresh table. theme/auto_weakness => weakness-targeted drill session."""
     global _session
-    _session = LiveSession(seed=seed, mode=mode, wait_llm=wait_llm)
+    if theme is not None or auto_weakness:
+        from pokergym.drills import build_drill_session
+
+        sess, _focus = build_drill_session(
+            theme_id=theme,
+            seed=seed,
+            mode=mode,
+            use_llm=use_llm_pick,
+            wait_llm=wait_llm,
+        )
+        _session = sess
+        return _session
+    _session = LiveSession(seed=int(seed if seed is not None else 1), mode=mode, wait_llm=wait_llm)
+    _session.drill = None
     _session.new_hand()
     return _session
 
@@ -77,6 +99,11 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/settings":
             self._json(public_settings())
             return
+        if path == "/api/weaknesses":
+            from pokergym.drills import weakness_report
+
+            self._json(weakness_report(use_llm=False))
+            return
         if path == "/api/export.json":
             raw = json.dumps(export_hands(), ensure_ascii=False, indent=2).encode("utf-8")
             self.send_response(200)
@@ -115,6 +142,34 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/usage/lower":
                 info = lower_intensity()
                 self._json(info)
+                return
+            if path == "/api/drill":
+                raw_seed = payload.get("seed")
+                seed = int(raw_seed) if raw_seed not in (None, "") else None
+                mode = payload.get("mode", "train")
+                if mode not in ("train", "realism"):
+                    mode = "train"
+                theme = payload.get("theme") or payload.get("theme_id")
+                if theme is not None:
+                    theme = str(theme).strip() or None
+                use_llm_pick = bool(payload.get("use_llm", False))
+                try:
+                    from pokergym.store import set_setting
+
+                    set_setting("product_mode", mode)
+                    apply_env()
+                except Exception:
+                    pass
+                wait = bool(payload.get("wait_llm"))
+                sess = reset_session(
+                    seed,
+                    mode,
+                    wait_llm=wait,
+                    theme=theme,
+                    auto_weakness=True,
+                    use_llm_pick=use_llm_pick,
+                )
+                self._json(dump_state(sess))
                 return
             if path == "/api/new":
                 seed = int(payload.get("seed", 1))

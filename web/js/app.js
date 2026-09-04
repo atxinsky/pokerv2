@@ -276,6 +276,27 @@ async function newTable() {
   }
 }
 
+
+async function startWeaknessDrill() {
+  if (busy) return;
+  const mode = $("mode").value;
+  const seed = Math.floor(Math.random() * 1e9);
+  busy = true;
+  try {
+    setHint("正在按弱项生成 drill 牌局…");
+    await apply(await api.drill({ seed, mode, use_llm: false }));
+    if (state && state.drill && state.drill.focus) {
+      setHint("弱项训练：" + state.drill.focus);
+    } else {
+      setHint("弱项 drill 已开始");
+    }
+  } catch (e) {
+    setHint(String(e.message || e));
+  } finally {
+    busy = false;
+  }
+}
+
 function setTape(tab) {
   tapeTab = tab;
   $("tab-live").classList.toggle("on", tab === "live");
@@ -338,6 +359,7 @@ $("bet-amount").addEventListener("input", () => {
 });
 $("btn-next").addEventListener("click", nextHand);
 $("btn-new").addEventListener("click", newTable);
+if ($("btn-drill")) $("btn-drill").addEventListener("click", startWeaknessDrill);
 $("mode").addEventListener("change", newTable);
 $("tab-live").addEventListener("click", () => setTape("live"));
 $("tab-hist").addEventListener("click", () => setTape("hist"));

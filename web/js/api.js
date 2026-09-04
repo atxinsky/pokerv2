@@ -24,4 +24,6 @@ const api = {
   saveSettings: (body) => api.post("/api/settings", body),
   reviewDetail: () => api.post("/api/review-detail", {}),
   lowerIntensity: () => api.post("/api/usage/lower", {}),
+  weaknesses: () => api.get("/api/weaknesses"),
+  drill: (body) => api.post("/api/drill", body || {}),
 };

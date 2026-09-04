@@ -295,8 +295,22 @@ function renderGrid(grid) {
 }
 
 function renderMast(state) {
-  document.getElementById("mast-meta").textContent =
-    `第 ${state.hand_idx + 1} 手 · 已打 ${state.hands_played} · ${state.street_zh} · 底池 ${state.pot_bb}bb`;
+  let meta = `第 ${state.hand_idx + 1} 手 · 已打 ${state.hands_played} · ${state.street_zh} · 底池 ${state.pot_bb}bb`;
+  if (state.drill && state.drill.active) {
+    meta += ` · 弱项：${state.drill.label || state.drill.id}`;
+  }
+  document.getElementById("mast-meta").textContent = meta;
+  const pill = document.getElementById("drill-pill");
+  if (pill) {
+    if (state.drill && state.drill.active) {
+      pill.hidden = false;
+      pill.textContent = state.drill.focus || state.drill.label || "弱项训练";
+      pill.title = state.drill.reason || "";
+    } else {
+      pill.hidden = true;
+      pill.textContent = "";
+    }
+  }
 }
 
 function renderSlip(state) {

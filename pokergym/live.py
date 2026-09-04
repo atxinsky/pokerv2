@@ -72,6 +72,8 @@ class LiveSession:
         self.llm_review: str | None = None
         self.llm_review_busy: bool = False
         self.llm_review_hand_idx: int | None = None
+        # Phase 2: weakness-targeted drill focus (None = normal table)
+        self.drill: dict | None = None
 
     def waiting(self) -> str:
         if not self.hand_open:
